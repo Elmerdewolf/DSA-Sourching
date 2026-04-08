@@ -24,27 +24,25 @@ export default async function handler(req, res) {
 
   let upstreamUrl;
 
+  // Only /1688/item_detail is confirmed working on this TMAPI plan.
+  // search and translate routes do not exist — return a structured 501 so
+  // the client can fall back to manual URL entry gracefully.
   if (endpoint === 'search') {
-    if (!keyword) {
-      res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'keyword is required' }));
-      return;
-    }
-    upstreamUrl = `${TMAPI_BASE}/ali/search/items?keyword=${encodeURIComponent(keyword)}&apiToken=${TMAPI_TOKEN}`;
+    res.writeHead(501, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'search endpoint not available on this TMAPI plan', fallback: true }));
+    return;
+  } else if (endpoint === 'translate') {
+    res.writeHead(501, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'translate endpoint not available on this TMAPI plan', fallback: true }));
+    return;
   } else if (endpoint === 'detail') {
     if (!item_id) {
       res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'item_id is required' }));
       return;
     }
-    upstreamUrl = `${TMAPI_BASE}/ali/item_detail?item_id=${encodeURIComponent(item_id)}&apiToken=${TMAPI_TOKEN}`;
-  } else if (endpoint === 'translate') {
-    if (!text) {
-      res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'text is required' }));
-      return;
-    }
-    upstreamUrl = `${TMAPI_BASE}/translate/text?text=${encodeURIComponent(text)}&target_lang=zh&apiToken=${TMAPI_TOKEN}`;
+    // Confirmed working path: /1688/item_detail
+    upstreamUrl = `${TMAPI_BASE}/1688/item_detail?item_id=${encodeURIComponent(item_id)}&apiToken=${TMAPI_TOKEN}`;
   } else {
     res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'endpoint must be "search", "detail", or "translate"' }));

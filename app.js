@@ -1292,52 +1292,15 @@ async function doSearch1688() {
   area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-500);font-size:13px;">${S1688_SPIN}正在翻译关键词... Translating...</div>`;
   statusLine.textContent = '';
 
-  // Step 1: translate product name to Chinese
-  let keyword = p.name;
-  try {
-    const trRes = await fetch(`/api/tmapi?endpoint=translate&text=${encodeURIComponent(p.name)}`);
-    if (trRes.ok) {
-      const trJson = await trRes.json();
-      const translated = trJson?.data?.text || trJson?.data?.translatedText || trJson?.data || trJson?.text || '';
-      if (translated && typeof translated === 'string' && translated.trim()) keyword = translated.trim();
-    }
-  } catch { /* fall through with original name */ }
-
-  area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-500);font-size:13px;">${S1688_SPIN}正在搜索"${keyword}"...</div>`;
-
-  // Step 2: search
-  try {
-    const res = await fetch(`/api/tmapi?endpoint=search&keyword=${encodeURIComponent(keyword)}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    const raw = json?.data?.items || json?.data?.data || (Array.isArray(json?.data) ? json.data : null) || json?.items || [];
-    const items = Array.isArray(raw) ? raw.slice(0, 5) : [];
-
-    if (items.length === 0) {
-      area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-400);font-size:13px;">
-        <div style="margin-bottom:8px;">未找到结果 No results found for "${keyword}"</div>
-        <div style="font-size:11px;">请展开下方手动输入链接 Expand the section below to paste a URL manually</div>
-      </div>`;
-      statusLine.textContent = '未找到结果';
-      retryBtn.style.display = 'inline-flex';
-      document.getElementById('s1688-manual-section').setAttribute('open', '');
-      return;
-    }
-
-    s1688ResultItems = items.map(item => normalize1688Item(item, ''));
-    statusLine.textContent = `找到 ${s1688ResultItems.length} 个结果 · 点击选择`;
-    renderSearch1688Cards();
-
-  } catch (err) {
-    console.error('[1688 search] error:', err);
-    area.innerHTML = `<div style="text-align:center;padding:28px;">
-      <div style="color:var(--danger);font-weight:600;margin-bottom:4px;">搜索失败 Search failed</div>
-      <div style="font-size:12px;color:var(--gray-500);">${err.message}</div>
-    </div>`;
-    statusLine.textContent = '搜索失败';
-    retryBtn.style.display = 'inline-flex';
-    document.getElementById('s1688-manual-section').setAttribute('open', '');
-  }
+  // Keyword search and translation are not available on the current TMAPI plan.
+  // Skip straight to the manual URL fallback with a helpful prompt.
+  area.innerHTML = `<div style="text-align:center;padding:24px 16px;color:var(--gray-500);font-size:13px;line-height:1.6;">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5" style="display:block;margin:0 auto 10px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    在1688搜索"<b>${p.name}</b>"，找到产品后复制链接粘贴到下方<br>
+    <span style="font-size:11px;color:var(--gray-400);">Search 1688 for this product, then paste the product URL below</span>
+  </div>`;
+  statusLine.textContent = '请手动搜索并粘贴链接';
+  document.getElementById('s1688-manual-section').setAttribute('open', '');
 }
 
 function renderSearch1688Cards() {
