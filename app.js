@@ -1309,7 +1309,7 @@ async function fetch1688ItemDetail() {
   s1688SelectedSupplier = null;
 
   try {
-    const apiUrl = `${TMAPI_BASE}/ali/item_detail?item_id=${itemId}&apiToken=${TMAPI_TOKEN}`;
+    const apiUrl = `/api/tmapi?endpoint=detail&item_id=${encodeURIComponent(itemId)}`;
     console.log('[1688 detail] fetching:', apiUrl);
     const res = await fetch(apiUrl);
     console.log('[1688 detail] status:', res.status);
