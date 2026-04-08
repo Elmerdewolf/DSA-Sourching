@@ -1,0 +1,16 @@
+[
+  {
+    "id": "f1",
+    "logisticsId": "logi_yuntu",
+    "country": "DE",
+    "zones": [
+      {
+        "min": 0,
+        "max": 2,
+        "freight": 50,
+        "registration": 30
+      }
+    ],
+    "createdAt": "2026-03-23T09:51:37.238Z"
+  }
+]

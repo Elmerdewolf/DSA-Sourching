@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>报价管理系统 v2.0</title>
+<style>
+:root {
+  --primary: #2563eb; --primary-dark: #1d4ed8; --primary-light: #eff6ff;
+  --success: #16a34a; --success-light: #f0fdf4;
+  --warning: #d97706; --warning-light: #fffbeb;
+  --danger: #dc2626; --danger-light: #fef2f2;
+  --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb;
+  --gray-300: #d1d5db; --gray-400: #9ca3af; --gray-500: #6b7280;
+  --gray-600: #4b5563; --gray-700: #374151; --gray-800: #1f2937; --gray-900: #111827;
+  --border-radius: 8px; --shadow: 0 1px 3px rgba(0,0,0,0.1);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--gray-100); color: var(--gray-800); min-height: 100vh; }
+
+.app-layout { display: flex; min-height: 100vh; }
+.sidebar { width: 220px; background: var(--gray-900); color: white; position: fixed; height: 100vh; z-index: 100; }
+.sidebar-logo { padding: 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sidebar-logo h1 { font-size: 15px; font-weight: 700; }
+.sidebar-logo p { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+.sidebar-nav { flex: 1; padding: 12px 8px; overflow-y: auto; }
+.nav-section { margin-bottom: 16px; }
+.nav-section-title { font-size: 10px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.08em; padding: 0 10px; margin-bottom: 4px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 6px; cursor: pointer; transition: all 0.15s; font-size: 13px; color: var(--gray-300); margin-bottom: 1px; }
+.nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
+.nav-item.active { background: var(--primary); color: white; }
+.nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+.main-content { margin-left: 220px; flex: 1; min-height: 100vh; }
+.page-header { background: white; padding: 16px 24px; border-bottom: 1px solid var(--gray-200); display: flex; align-items: center; justify-content: space-between; }
+.page-header h2 { font-size: 18px; font-weight: 600; color: var(--gray-900); }
+.page-body { padding: 24px; }
+
+.card { background: white; border-radius: var(--border-radius); box-shadow: var(--shadow); margin-bottom: 20px; }
+.card-header { padding: 14px 18px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between; }
+.card-title { font-size: 14px; font-weight: 600; color: var(--gray-800); }
+.card-body { padding: 18px; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; text-decoration: none; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-success { background: var(--success); color: white; }
+.btn-warning { background: var(--warning); color: white; }
+.btn-danger { background: var(--danger); color: white; }
+.btn-outline { background: white; color: var(--gray-700); border: 1.5px solid var(--gray-300); }
+.btn-outline:hover { background: var(--gray-50); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.form-group { margin-bottom: 14px; }
+.form-label { display: block; font-size: 13px; font-weight: 500; color: var(--gray-700); margin-bottom: 5px; }
+.form-control { width: 100%; padding: 8px 12px; border: 1.5px solid var(--gray-300); border-radius: 6px; font-size: 13px; color: var(--gray-800); outline: none; background: white; }
+.form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.form-row { display: grid; gap: 14px; }
+.form-row-2 { grid-template-columns: 1fr 1fr; }
+.form-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-row-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+.table-wrapper { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { background: var(--gray-50); padding: 10px 12px; text-align: left; font-weight: 600; font-size: 11px; color: var(--gray-600); text-transform: uppercase; border-bottom: 1px solid var(--gray-200); white-space: nowrap; }
+tbody td { padding: 10px 12px; border-bottom: 1px solid var(--gray-100); vertical-align: middle; }
+tbody tr:hover { background: var(--gray-50); }
+
+/* 登录页面样式 */
+.login-overlay { position: fixed; inset: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); z-index: 2000; display: flex; align-items: center; justify-content: center; }
+.login-overlay.hidden { display: none; }
+.login-card { background: white; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); width: 100%; max-width: 400px; overflow: hidden; }
+.login-header { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 28px 24px; text-align: center; }
+.login-header h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.login-header p { font-size: 12px; opacity: 0.9; }
+.login-body { padding: 32px 28px; }
+
+.badge { display: inline-flex; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+.badge-blue { background: #dbeafe; color: #1e40af; }
+.badge-green { background: #dcfce7; color: #166534; }
+.badge-yellow { background: #fef9c3; color: #854d0e; }
+.badge-red { background: #fee2e2; color: #991b1b; }
+.badge-gray { background: var(--gray-100); color: var(--gray-600); }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal { background: white; border-radius: 10px; box-shadow: var(--shadow-md); width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; transform: scale(0.95); transition: transform 0.2s; }
+.modal-overlay.open .modal { transform: scale(1); }
+.modal-header { padding: 14px 18px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between; }
+.modal-header h3 { font-size: 15px; font-weight: 600; }
+.modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--gray-400); }
+.modal-body { padding: 18px; }
+.modal-footer { padding: 14px 18px; border-top: 1px solid var(--gray-100); display: flex; justify-content: flex-end; gap: 10px; }
+
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--gray-200); margin-bottom: 16px; }
+.tab { padding: 8px 16px; font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--gray-500); }
+.tab.active { border-bottom-color: var(--primary); color: var(--primary); font-weight: 500; }
+
+.page { display: none; }
+.page.active { display: block; }
+
+.empty-state { text-align: center; padding: 40px; color: var(--gray-500); }
+.empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.5; }
+
+.search-box { position: relative; }
+.search-box svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--gray-400); }
+.search-box input { padding-left: 32px; }
+
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+.stat-card { background: white; padding: 16px; border-radius: var(--border-radius); box-shadow: var(--shadow); }
+.stat-card.primary { border-left: 4px solid var(--primary); }
+.stat-card.success { border-left: 4px solid var(--success); }
+.stat-card.warning { border-left: 4px solid var(--warning); }
+.stat-card.danger { border-left: 4px solid var(--danger); }
+.stat-label { font-size: 12px; color: var(--gray-500); margin-bottom: 4px; }
+.stat-value { font-size: 24px; font-weight: 700; color: var(--gray-800); }
+
+/* 产品卡片 */
+.prod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+.prod-card { background: white; border-radius: var(--border-radius); box-shadow: var(--shadow); overflow: hidden; cursor: pointer; transition: box-shadow 0.2s; position: relative; }
+.prod-card:hover { box-shadow: var(--shadow-md); }
+.prod-card-img { width: 100%; height: 150px; object-fit: cover; background: var(--gray-100); }
+.prod-card-img-ph { width: 100%; height: 150px; display: flex; align-items: center; justify-content: center; background: var(--gray-50); }
+.prod-card-body { padding: 12px; }
+.prod-card-name { font-size: 14px; font-weight: 600; color: var(--gray-800); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prod-card-meta { font-size: 12px; color: var(--gray-500); }
+.prod-card-footer { padding: 8px 12px; border-top: 1px solid var(--gray-100); display: flex; gap: 8px; }
+.prod-card-checkbox input { width: 16px; height: 16px; }
+
+/* 图片上传 */
+.img-upload { border: 2px dashed var(--gray-300); border-radius: var(--border-radius); padding: 24px; text-align: center; cursor: pointer; transition: all 0.2s; }
+.img-upload:hover { border-color: var(--primary); background: var(--primary-light); }
+.img-upload.has-img { border-style: solid; border-color: var(--primary); padding: 0; }
+
+/* 多图缩略 */
+.thumb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; border: 1.5px dashed var(--gray-300); padding: 8px; border-radius: 6px; min-height: 88px; background: white; cursor: pointer; }
+.thumb-item { position: relative; width: 100%; padding-top: 100%; overflow: hidden; border-radius: 6px; background: var(--gray-50); border: 1px solid var(--gray-200); }
+.thumb-item img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.thumb-remove { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.55); color: #fff; border: none; border-radius: 999px; width: 18px; height: 18px; cursor: pointer; line-height: 16px; font-size: 12px; }
+.thumb-empty { grid-column: 1 / -1; font-size: 12px; color: var(--gray-400); text-align: center; padding: 16px 0; }
+
+/* 报价结果表格 */
+.quote-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+.quote-table th, .quote-table td { padding: 10px; border: 1px solid var(--gray-200); text-align: center; }
+.quote-table th { background: var(--gray-50); font-weight: 600; }
+.quote-table .highlight { background: #f0fdf4; font-weight: 600; }
+
+/* Toast */
+#toast-wrap { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; }
+.toast { background: white; padding: 12px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 10px; min-width: 280px; max-width: 400px; }
+.toast-ok { border-left: 4px solid var(--success); }
+.toast-err { border-left: 4px solid var(--danger); }
+.toast-info { border-left: 4px solid var(--primary); }
+
+/* 区间编辑 */
+.zone-row { background: var(--gray-50); border-radius: 6px; padding: 12px; margin-bottom: 8px; }
+.zone-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; color: var(--gray-600); }
+.zone-fields { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+.zone-fields input { padding: 6px 8px; border: 1px solid var(--gray-300); border-radius: 4px; font-size: 12px; }
+
+/* 多选国家 */
+.country-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-height: 200px; overflow-y: auto; padding: 8px; border: 1px solid var(--gray-200); border-radius: 6px; }
+.country-item { display: flex; align-items: center; gap: 6px; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.country-item:hover { background: var(--gray-50); }
+.country-item input { margin: 0; }
+</style>
+</head>
+<body>
+<!-- 登录页面 -->
+<div id="login-page" class="login-overlay">
+  <div class="login-card">
+    <div class="login-header">
+      <h1>报价管理系统</h1>
+      <p>v2.0 - 三角色协作</p>
+    </div>
+    <div class="login-body">
+      <div class="form-group">
+        <label class="form-label">账号</label>
+        <input type="text" id="login-username" class="form-control" placeholder="请输入账号" onkeypress="if(event.key==='Enter')login()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">密码</label>
+        <input type="password" id="login-password" class="form-control" placeholder="请输入密码" onkeypress="if(event.key==='Enter')login()">
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="login()">登录</button>
+    </div>
+  </div>
+</div>
+
+<div class="app-layout">
+  <!-- 侧边栏 -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h1>报价管理系统</h1>
+      <p>Quote Management System v2.0</p>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">工作台</div>
+        <div class="nav-item active" onclick="nav('dashboard')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          概览 Overview
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">报价员</div>
+        <div class="nav-item" onclick="nav('products')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          产品管理 Products
+        </div>
+        <div class="nav-item" onclick="nav('quote-gen')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          生成报价 Generate Quote
+        </div>
+        <div class="nav-item" onclick="nav('quotes')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          报价记录 Quotes
+        </div>
+        <div class="nav-item" onclick="nav('logistics')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+          物流商管理 Logistics
+        </div>
+        <div class="nav-item" onclick="nav('freight')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          运费标准 Freight
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">询价员</div>
+        <div class="nav-item" onclick="nav('inquiry')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="11"/><line x1="11" y1="16" x2="11.01" y2="16"/></svg>
+          采购询价 Sourcing
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">管理员</div>
+        <div class="nav-item" data-admin-only="true" onclick="nav('users')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          账号管理 Users
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">系统</div>
+      <div class="nav-item" onclick="changeDataDirectory()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11l-9-7-9 7V9z"/><path d="M21 9v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9"/><rect x="10" y="13" width="4" height="6"/></svg>
+        切换数据目录
+      </div>
+      <div class="nav-item" onclick="fixedDataDirectory()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h6l2 2h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2"/></svg>
+        固定到 data 目录
+      </div>
+      <div class="nav-item" onclick="logout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        退出登录
+      </div>
+      <div style="margin-top:8px;padding:8px 10px;border-radius:6px;background:rgba(255,255,255,0.06);color:var(--gray-300);font-size:11px;line-height:1.5;">
+          <div style="color:var(--gray-500);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">数据目录</div>
+          <div id="data-dir-display">未设置</div>
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- 主内容区 -->
+  <main class="main-content">
+    <!-- Toast 容器 -->
+    <div id="toast-wrap"></div>
+
+    <!-- 概览页面 -->
+    <div id="page-dashboard" class="page active">
+      <header class="page-header">
+        <div>
+          <h2>工作台概览 Overview</h2>
+          <p id="today-str">--</p>
+        </div>
+      </header>
+      <div class="page-body">
+        <div class="stats-grid">
+          <div class="stat-card primary">
+            <div class="stat-label">产品总数 Total Products</div>
+            <div class="stat-value" id="s-products">0</div>
+          </div>
+          <div class="stat-card warning">
+            <div class="stat-label">待询价 Unsourced</div>
+            <div class="stat-value" id="s-pending">0</div>
+          </div>
+          <div class="stat-card success">
+            <div class="stat-label">报价单数 Total Quotations</div>
+            <div class="stat-value" id="s-quotes">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">物流商 Logistics</div>
+            <div class="stat-value" id="s-logistics">0</div>
+          </div>
+        </div>
+        <div class="form-row form-row-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">最近产品 Recent Products</span></div>
+            <div class="card-body" id="dash-products"><div class="empty-state">暂无数据</div></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">最近报价 Latest Quotes</span></div>
+            <div class="card-body" id="dash-quotes"><div class="empty-state">暂无数据</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 产品管理页面 -->
+    <div id="page-products" class="page">
+      <header class="page-header">
+        <div>
+          <h2>产品管理 Product Management</h2>
+          <p>报价员添加待报价产品</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline" onclick="exportProducts()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            导出产品
+          </button>
+          <button class="btn btn-outline" onclick="openBatchAddProduct()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            批量添加
+          </button>
+          <button class="btn btn-primary" onclick="openAddProduct()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            添加产品
+          </button>
+        </div>
+      </header>
+      <div class="page-body">
+        <div class="card">
+          <div class="card-body">
+            <div class="form-row form-row-4" style="margin-bottom:16px;">
+              <div class="search-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="prod-search" class="form-control" placeholder="搜索产品..." oninput="renderProducts()">
+              </div>
+              <select id="prod-status" class="form-control" onchange="renderProducts()">
+                <option value="">全部状态</option>
+                <option value="pending">待询价 Unsourced</option>
+                <option value="inquired">已询价 Inquired</option>
+                <option value="quoted">已报价 Quoted</option>
+              </select>
+              <input type="date" id="prod-date-start" class="form-control" placeholder="开始日期" onchange="renderProducts()">
+              <input type="date" id="prod-date-end" class="form-control" placeholder="结束日期" onchange="renderProducts()">
+            </div>
+            <div class="form-row form-row-2" style="margin-bottom:16px;">
+              <select id="prod-quote-user" class="form-control" onchange="renderProducts()">
+                <option value="">全部报价员</option>
+              </select>
+              <select id="prod-inquiry-user" class="form-control" onchange="renderProducts()">
+                <option value="">全部询价员</option>
+              </select>
+            </div>
+            <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px;">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+                <input type="checkbox" id="prod-chk-all" onchange="toggleAllProducts(this)" title="全选">
+                <span>全选</span>
+              </label>
+              <button id="prod-batch-del-btn" class="btn btn-danger btn-sm" onclick="batchDelProducts()" disabled>批量删除</button>
+              <span id="prod-selected-count" style="font-size:12px;color:var(--gray-500);">已选 0 项</span>
+            </div>
+            <div class="prod-grid" id="prod-grid"></div>
+            <div id="prod-empty" class="empty-state" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <p>暂无产品</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 采购询价页面 -->
+    <div id="page-inquiry" class="page">
+      <header class="page-header">
+        <div>
+          <h2>采购询价 Sourcing</h2>
+          <p>询价员补充产品重量、成本和采购链接</p>
+        </div>
+      </header>
+      <div class="page-body">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">待询价产品 Unsourced Products</span>
+            <span class="badge badge-yellow" id="inquiry-count">0</span>
+          </div>
+          <div class="card-body">
+            <div id="inquiry-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 生成报价页面 -->
+    <div id="page-quote-gen" class="page">
+      <header class="page-header">
+        <div>
+          <h2>生成报价 Generate Quote</h2>
+          <p>选择产品、物流商和国家，一键生成多国报价</p>
+        </div>
+        <button class="btn btn-outline" onclick="openCountryModal()">国家管理</button>
+      </header>
+      <div class="page-body">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header">
+            <span class="card-title">选择产品（可多选）</span>
+            <span class="badge badge-blue" id="qg-prod-count">0</span>
+          </div>
+          <div class="card-body">
+            <div style="margin-bottom:12px;">
+              <input type="text" id="qg-prod-search" class="form-control" placeholder="搜索产品..." oninput="renderProductSelect()">
+            </div>
+            <div class="qg-prod-grid" id="qg-prod-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;max-height:240px;overflow-y:auto;"></div>
+          </div>
+        </div>
+        <div class="form-row form-row-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">报价参数</span></div>
+            <div class="card-body">
+              <div class="form-group">
+                <label class="form-label">选择物流商</label>
+                <select id="qg-logi" class="form-control"></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">选择国家（可多选）</label>
+                <div class="search-box" style="margin-bottom:8px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input type="text" id="qg-country-search" class="form-control" placeholder="搜索国家或缩写..." oninput="renderQuoteCountries()">
+                </div>
+                <div class="country-grid" id="qg-countries"></div>
+              </div>
+
+              <div class="form-row form-row-2">
+                <div class="form-group">
+                  <label class="form-label">利润率 (%)</label>
+                  <input type="number" id="qg-profit" class="form-control" value="15" step="1">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">汇率 (USD/CNY)</label>
+                  <input type="number" id="qg-rate" class="form-control" value="7" step="0.1">
+                </div>
+              </div>
+              <button class="btn btn-primary" onclick="generateQuote()" style="width:100%;">生成报价</button>
+            </div>
+          </div>
+          <div class="card" id="qg-result-card" style="display:none;">
+            <div class="card-header">
+              <span class="card-title">报价结果</span>
+              <button class="btn btn-sm btn-outline" onclick="copyQuoteTable()">复制表格</button>
+            </div>
+            <div class="card-body">
+              <div id="qg-result-table"></div>
+              <button class="btn btn-success" onclick="saveQuote()" style="width:100%;margin-top:16px;">保存报价</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 国家管理模态框 -->
+    <div id="mo-country" class="modal-overlay">
+      <div class="modal" style="max-width:600px;">
+        <div class="modal-header">
+          <h3>国家管理</h3>
+          <button class="modal-close" onclick="closeM('mo-country')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="country-edit-code">
+          <div class="form-row form-row-2">
+            <input type="text" id="country-name" class="form-control" placeholder="国家名称（中文）">
+            <input type="text" id="country-code" class="form-control" placeholder="国家缩写（如：DE）">
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <button id="country-save-btn" class="btn btn-primary" onclick="saveCountry()" style="flex:1;">添加国家</button>
+            <button id="country-cancel-btn" class="btn btn-outline" onclick="cancelCountryEdit()" style="display:none;">取消编辑</button>
+          </div>
+          <div id="country-list" style="max-height:300px;overflow-y:auto;"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" onclick="closeM('mo-country')">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 报价记录页面 -->
+    <div id="page-quotes" class="page">
+      <header class="page-header">
+        <div>
+          <h2>报价记录 Quotation Records</h2>
+          <p>查看和管理历史报价</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button id="quote-batch-export-btn" class="btn btn-primary" onclick="batchExportQuotes()">批量导出</button>
+          <button id="quote-batch-del-btn" class="btn btn-danger" onclick="batchDelQuotes()" disabled>批量删除</button>
+        </div>
+      </header>
+      <div class="page-body">
+        <div class="card">
+          <div class="card-body">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:32px;text-align:center;"><input type="checkbox" id="quote-chk-all" onchange="toggleAllQuotes(this)" title="全选"></th>
+                    <th style="width:50px;">图片</th>
+                    <th>报价单号 Quote No.</th>
+                    <th>产品 Product</th>
+                    <th>物流商 Logistics</th>
+                    <th>国家 Country</th>
+                    <th>报价 Quotation(USD)</th>
+                    <th>创建时间 Date</th>
+                    <th>操作 Action</th>
+                  </tr>
+                </thead>
+                <tbody id="quotes-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 物流商管理页面 -->
+    <div id="page-logistics" class="page">
+      <header class="page-header">
+        <div>
+          <h2>物流商管理 Logistics Management</h2>
+          <p>管理物流商信息</p>
+        </div>
+        <button class="btn btn-primary" onclick="openAddLogi()">添加物流商</button>
+      </header>
+      <div class="page-body">
+        <div class="card">
+          <div class="card-body">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>物流商 Logistics</th>
+                    <th>代码 Code</th>
+                    <th>联系方式 Contact</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="logistics-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 运费标准页面 -->
+    <div id="page-freight" class="page">
+      <header class="page-header">
+        <div>
+          <h2>运费标准 Freight Standards</h2>
+          <p>管理各物流商的运费费率</p>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-outline" onclick="downloadTemplate()">下载模板</button>
+          <button class="btn btn-outline" onclick="openImportModal()">批量导入</button>
+          <button class="btn btn-primary" onclick="openAddFreight()">添加规则</button>
+        </div>
+      </header>
+      <div class="page-body">
+        <div class="card">
+          <div class="card-body">
+            <div class="form-row form-row-2" style="margin-bottom:16px;">
+              <select id="freight-logi-f" class="form-control" onchange="renderFreight()">
+                <option value="">全部物流商</option>
+              </select>
+              <input type="text" id="freight-search" class="form-control" placeholder="搜索国家..." oninput="renderFreight()">
+            </div>
+            <div style="margin-bottom:10px;">
+              <button id="freight-batch-del-btn" class="btn btn-danger" onclick="batchDelFreight()" disabled>批量删除</button>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:36px;text-align:center;"><input type="checkbox" id="freight-chk-all" onchange="toggleAllFreight(this)" title="全选"></th>
+                    <th>物流商 Logistics</th>
+                    <th>国家</th>
+                    <th>重量区间 (kg)</th>
+                    <th>运费单价 (¥/kg)</th>
+                    <th>挂号费 (¥)</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="freight-list"></tbody>
+              </table>
+            </div>
+            <div id="freight-empty" class="empty-state" style="display:none;">
+              <p>暂无运费规则</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 账号管理页面 -->
+    <div id="page-users" class="page">
+      <header class="page-header">
+        <div>
+          <h2>账号管理 User Management</h2>
+          <p id="users-current-tip">管理员可新增、编辑和删除登录账号</p>
+        </div>
+        <button class="btn btn-primary" onclick="openAddUser()">添加账号</button>
+      </header>
+      <div class="page-body">
+        <div class="card">
+          <div class="card-body">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>账号</th>
+                    <th>姓名/备注</th>
+                    <th>角色</th>
+                    <th>创建日期</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="users-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- 添加产品模态框 -->
+<div id="mo-product" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="mo-prod-title">添加产品</h3>
+      <button class="modal-close" onclick="closeM('mo-product')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ep-id">
+      <div class="form-group">
+        <label class="form-label">产品图片</label>
+        <div class="img-upload" id="img-upload-area" tabindex="0" onclick="document.getElementById('p-img').click()" onpaste="handleImgPaste(event)">
+          <div id="img-placeholder">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <p style="font-size:12px;color:var(--gray-500);margin-top:8px;">点击上传图片或 Ctrl+V 粘贴</p>
+          </div>
+          <img id="img-preview" style="display:none;width:100%;max-height:200px;object-fit:cover;">
+        </div>
+        <input type="file" id="p-img" accept="image/*" style="display:none;" onchange="handleImgUpload(this)">
+      </div>
+      <div class="form-group">
+        <label class="form-label">产品名称 *</label>
+        <input type="text" id="p-name" class="form-control" placeholder="输入产品名称">
+      </div>
+      <div class="form-group">
+        <label class="form-label">产品参考链接</label>
+        <input type="url" id="p-link" class="form-control" placeholder="https://1688.com/product/...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">SKU/编码</label>
+        <input type="text" id="p-sku" class="form-control" placeholder="输入SKU">
+      </div>
+      <div class="form-group">
+        <label class="form-label">产品分类</label>
+        <select id="p-cat" class="form-control">
+          <option value="电子产品">电子产品</option>
+          <option value="服装">服装</option>
+          <option value="家居">家居</option>
+          <option value="配件">配件</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+      <div class="form-row form-row-3">
+        <div class="form-group">
+          <label class="form-label">操作日期</label>
+          <input type="date" id="p-op-date" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">报价人员名字</label>
+          <select id="p-quote-user" class="form-control">
+            <option value="">-- 请选择报价员 --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">询价人员名字</label>
+          <select id="p-inquiry-user" class="form-control">
+            <option value="">-- 请选择询价员 --</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">备注</label>
+        <textarea id="p-note" class="form-control" rows="2" placeholder="可选"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeM('mo-product')">取消</button>
+      <button class="btn btn-primary" onclick="saveProduct()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 批量添加产品模态框 -->
+<div id="mo-batch-product" class="modal-overlay">
+  <div class="modal" style="max-width:800px;">
+    <div class="modal-header">
+      <h3>批量添加产品</h3>
+      <button class="modal-close" onclick="closeM('mo-batch-product')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px;">请先下载模板，按列填写：产品名称、产品链接、报价员，然后上传 CSV 文件批量导入。</p>
+      <div style="margin-bottom:12px;">
+        <button class="btn btn-outline" type="button" onclick="downloadProductBatchTemplate()">下载产品导入模板</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">上传模板文件 (CSV)</label>
+        <input type="file" id="batch-prod-file" class="form-control" accept=".csv,text/csv" onchange="handleBatchProductFileSelect(event)">
+      </div>
+      <div class="form-group">
+        <label class="form-label">导入预览</label>
+        <div id="batch-prod-preview" style="max-height:240px;overflow:auto;border:1px solid var(--gray-200);border-radius:6px;">
+          <div style="padding:20px;text-align:center;color:var(--gray-400);">请选择模板文件</div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--gray-500);">提示：产品图片可在导入后进入产品详情单独上传。</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeM('mo-batch-product')">取消</button>
+      <button id="batch-prod-import-btn" class="btn btn-primary" onclick="saveBatchProduct()" disabled>批量导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 询价模态框 -->
+<div id="mo-inquiry" class="modal-overlay">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header">
+      <h3>采购询价 Sourcing</h3>
+      <button class="modal-close" onclick="closeM('mo-inquiry')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="inq-id">
+      <div style="display:flex;gap:16px;margin-bottom:16px;">
+        <div style="flex:1;text-align:center;">
+          <div style="font-size:12px;color:var(--gray-500);margin-bottom:4px;">产品图片</div>
+          <img id="inq-img" style="max-width:100%;max-height:120px;border-radius:6px;">
+        </div>
+        <div style="flex:1;text-align:center;">
+          <div style="font-size:12px;color:var(--gray-500);margin-bottom:4px;">实拍图</div>
+          <div class="img-upload" id="inq-real-img-area" tabindex="0" onclick="document.getElementById('inq-real-img').click()" onpaste="handleRealImgPaste(event)" style="padding:12px;height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+            <div id="inq-real-placeholder">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <p style="font-size:11px;color:var(--gray-500);margin-top:4px;">点击上传实拍图或 Ctrl+V 粘贴</p>
+            </div>
+            <img id="inq-real-preview" style="display:none;max-width:100%;max-height:100px;object-fit:cover;">
+          </div>
+          <input type="file" id="inq-real-img" accept="image/*" style="display:none;" onchange="handleRealImgUpload(this)">
+        </div>
+      </div>
+      <div id="inq-name" style="font-weight:600;margin-bottom:12px;text-align:center;"></div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label class="form-label">产品参考链接</label>
+        <div id="inq-link-display" style="text-align:center;"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">尺码表</label>
+        <div class="img-upload" id="inq-size-img-area" tabindex="0" onclick="document.getElementById('inq-size-img').click()" onpaste="handleSizeChartPaste(event)" style="padding:12px;height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <div id="inq-size-placeholder">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <p style="font-size:11px;color:var(--gray-500);margin-top:4px;">点击上传尺码表或 Ctrl+V 粘贴</p>
+          </div>
+          <img id="inq-size-preview" style="display:none;max-width:100%;max-height:140px;object-fit:contain;">
+        </div>
+        <input type="file" id="inq-size-img" accept="image/*" style="display:none;" onchange="handleSizeChartUpload(this)">
+        <div style="margin-top:6px;display:flex;justify-content:flex-end;">
+          <button class="btn btn-sm btn-outline" type="button" onclick="clearSizeChart()">清除尺码表</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">更多实拍图</label>
+        <div class="thumb-grid" id="inq-more-real-list" tabindex="0" onpaste="handleMoreRealPaste(event)"></div>
+        <div style="margin-top:8px;display:flex;gap:8px;">
+          <button class="btn btn-sm btn-outline" type="button" onclick="document.getElementById('inq-more-real-input').click()">添加图片</button>
+          <button class="btn btn-sm btn-outline" type="button" onclick="clearMoreRealImages()">清空</button>
+        </div>
+        <input type="file" id="inq-more-real-input" accept="image/*" multiple style="display:none;" onchange="handleMoreRealUpload(this)">
+        <div style="font-size:11px;color:var(--gray-500);margin-top:6px;">支持多张上传或粘贴</div>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label class="form-label">产品重量 (kg) *</label>
+          <input type="number" id="inq-weight" class="form-control" step="0.01" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">产品成本 (¥) *</label>
+          <input type="number" id="inq-cost" class="form-control" step="0.01" placeholder="0.00">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">采购链接</label>
+        <input type="url" id="inq-link1" class="form-control" placeholder="https://...">
+      </div>
+      <div class="form-group">
+        <input type="url" id="inq-link2" class="form-control" placeholder="备选链接 (可选)">
+      </div>
+      <div class="form-group">
+        <label class="form-label">备注</label>
+        <textarea id="inq-note" class="form-control" rows="2" placeholder="采购备注、供应商信息等..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeM('mo-inquiry')">取消</button>
+      <button class="btn btn-primary" onclick="saveInquiry()">保存询价</button>
+    </div>
+  </div>
+</div>
+
+<!-- 询价修改记录模态框 -->
+<div id="mo-inquiry-history" class="modal-overlay">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header">
+      <h3 id="inq-history-title">询价修改记录</h3>
+      <button class="modal-close" onclick="closeM('mo-inquiry-history')">&times;</button>
+    </div>
+    <div class="modal-body" id="inq-history-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeM('mo-inquiry-history')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 产品图片上传模态框 -->
+<div id="mo-prod-img" class="modal-overlay">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <h3>上传产品图片</h3>
+      <button class="modal-close" onclick="closeM('mo-prod-img')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="prod-img-prod-id">
+      <div class="img-upload" id="prod-img-upload-area" tabindex="0" onclick="document.getElementById('prod-img-file').click()" onpaste="handleProdImgPaste(event)" style="padding:20px;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <div id="prod-img-placeholder">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <p style="font-size:12px;color:var(--gray-500);margin-top:8px;">点击上传图片或 Ctrl+V 粘贴</p>
+        </div>
+        <img id="prod-img-preview" style="display:none;max-width:100%;max-height:200px;object-fit:contain;border-radius:6px;">
+      </div>
+      <input type="file" id="prod-img-file" accept="image/*" style="display:none;" onchange="handleProdImgUpload(this)">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="clearProdImg()">清除</button>
+      <button class="btn btn-primary" onclick="saveProdImg()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 账号管理模态框 -->
+<div id="mo-user" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="mo-user-title">添加账号</h3>
+      <button class="modal-close" onclick="closeM('mo-user')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="eu-id">
+      <div class="form-group">
+        <label class="form-label">登录账号 *</label>
+        <input type="text" id="u-username" class="form-control" placeholder="如：admin02 / quote_user">
+      </div>
+      <div class="form-group">
+        <label class="form-label">姓名/备注 *</label>
+        <input type="text" id="u-name" class="form-control" placeholder="如：业务助理A">
+      </div>
+      <div class="form-group">
+        <label class="form-label">角色 *</label>
+        <select id="u-role" class="form-control">
+          <option value="admin">管理员</option>
+          <option value="quote">报价员</option>
+          <option value="inquiry">询价员</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">登录密码 *</label>
+        <input type="password" id="u-password" class="form-control" placeholder="至少 6 位">
+        <div id="u-password-tip" style="margin-top:6px;font-size:12px;color:var(--gray-500);">请设置登录密码</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeM('mo-user')">取消</button>
+      <button class="btn btn-primary" onclick="saveUser()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 添加物流商模态框 -->
+<div id="mo-logi" class="modal-overlay">
+
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="mo-logi-title">添加物流商 Add Logistics</h3>
+      <button class="modal-close" onclick="closeM('mo-logi')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="el-id">
+      <div class="form-group">
+        <label class="form-label">物流商名称 *</label>
+        <input type="text" id="l-name" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">代码</label>
+        <input type="text" id="l-code" class="form-control" placeholder="如: YT">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">联系方式</label>
+        <input type="text" id="l-contact" class="form-control">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeM('mo-logi')">取消</button>
+      <button class="btn btn-primary" onclick="saveLogi()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 添加运费规则模态框 -->
+<div id="mo-freight" class="modal-overlay">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header">
+      <h3 id="mo-freight-title">添加运费规则</h3>
+      <button class="modal-close" onclick="closeM('mo-freight')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ef-id">
+      <div class="form-group">
+        <label class="form-label">物流商 *</label>
+        <select id="f-logi" class="form-control"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">国家 *</label>
+        <input type="text" id="f-country" class="form-control" list="country-dl">
+        <datalist id="country-dl"></datalist>
+      </div>
+      <div class="form-group">
+        <label class="form-label">重量区间与费率</label>
+        <div id="f-zones"></div>
+        <button class="btn btn-sm btn-outline" onclick="addZone()" style="margin-top:8px;">+ 添加区间</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">备注</label>
+        <input type="text" id="f-note" class="form-control">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeM('mo-freight')">取消</button>
+      <button class="btn btn-primary" onclick="saveFreight()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 批量导入模态框 -->
+<div id="modal-import" class="modal-overlay">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header">
+      <h3>批量导入运费标准</h3>
+      <button class="modal-close" onclick="closeM('modal-import')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">选择文件 (CSV)</label>
+        <input type="file" id="import-file" class="form-control" accept=".csv" onchange="handleFileSelect(event)">
+        <p style="font-size:12px;color:var(--gray-500);margin-top:6px;">格式: 物流商,国家,代码,最小重量,最大重量,单价,挂号费</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">导入预览</label>
+        <div id="import-preview" style="max-height:200px;overflow:auto;border:1px solid var(--gray-200);border-radius:6px;">
+          <div style="padding:20px;text-align:center;color:var(--gray-400);">请选择文件</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">导入模式</label>
+        <select id="import-mode" class="form-control">
+          <option value="append">追加到现有数据</option>
+          <option value="replace">替换全部数据</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeM('modal-import')">取消</button>
+      <button class="btn btn-primary" id="btn-confirm-import" onclick="confirmImport()" disabled>确认导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 报价详情模态框 -->
+<div id="mo-quote-detail" class="modal-overlay">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <h3>报价详情</h3>
+      <button class="modal-close" onclick="closeM('mo-quote-detail')">&times;</button>
+    </div>
+    <div class="modal-body" id="quote-detail-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeM('mo-quote-detail')">关闭</button>
+      <button class="btn btn-primary" onclick="copyQuoteDetail()">复制表格</button>
+    </div>
+
+
+  </div>
+</div>
+
+<script src="app.js?v=20260401-12"></script>
+</body>
+</html>

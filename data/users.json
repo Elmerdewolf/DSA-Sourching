@@ -1,0 +1,26 @@
+[
+  {
+    "id": "default-admin-001",
+    "username": "admin",
+    "name": "管理员",
+    "role": "admin",
+    "passwordHash": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
+    "createdAt": "2024-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "default-quote-001",
+    "username": "quote",
+    "name": "报价员",
+    "role": "quote",
+    "passwordHash": "a1f92602db1549f6bae7c3c9e2d7d8a0e3c9e8c7b8d3f5e7a9b1c2d3e4f5a6b",
+    "createdAt": "2024-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "default-inquiry-001",
+    "username": "inquiry",
+    "name": "询价员",
+    "role": "inquiry",
+    "passwordHash": "b2e04713ec2658a10cbf8d4f8e3e8e9b1f4d0f9d8c7e6f4a5b3c2d1e0f9a8b7",
+    "createdAt": "2024-01-01T00:00:00.000Z"
+  }
+]

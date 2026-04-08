@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>生成密码哈希</title>
+</head>
+<body>
+  <h2>默认管理员账号密码哈希</h2>
+  <p id="result"></p>
+  <script>
+    async function hashPassword(password) {
+      const text = String(password || '');
+      if (!text) return '';
+      if (window.crypto && window.crypto.subtle) {
+        const bytes = new TextEncoder().encode(text);
+        const digest = await window.crypto.subtle.digest('SHA-256', bytes);
+        return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+      return text;
+    }
+    (async () => {
+      const hash = await hashPassword('admin123');
+      document.getElementById('result').textContent = hash;
+    })();
+  </script>
+</body>
+</html>
