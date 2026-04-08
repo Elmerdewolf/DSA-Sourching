@@ -7,6 +7,7 @@
 // === 1688 API Config ===
 const TMAPI_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6IkRTQSIsIkNvbWlkIjpudWxsLCJSb2xlaWQiOm51bGwsImlzcyI6InRtYXBpIiwic3ViIjoiRFNBIiwiYXVkIjpbIiJdLCJpYXQiOjE3NDI5ODczNzB9.I2Ty0TtKYE_zHiuT071RjDgsM7x4UC7rePJD0c4qR9M';
 const TMAPI_BASE = 'https://api.tmapi.top';
+const CORS_PROXY = 'https://corsproxy.io/?url=';
 
 const STORAGE = { products: 'qms_products', logistics: 'qms_logistics', freight: 'qms_freight', quotes: 'qms_quotes', users: 'qms_users' };
 const DIR_DB = 'qms_dir_db';
@@ -1265,7 +1266,7 @@ async function doSearch1688() {
     // Step 1: translate keyword to Chinese
     let searchKeyword = keyword;
     try {
-      const trRes = await fetch(`${TMAPI_BASE}/translate/text?text=${encodeURIComponent(keyword)}&target_lang=zh&apiToken=${TMAPI_TOKEN}`);
+      const trRes = await fetch(CORS_PROXY + encodeURIComponent(`${TMAPI_BASE}/translate/text?text=${encodeURIComponent(keyword)}&target_lang=zh&apiToken=${TMAPI_TOKEN}`));
       if (trRes.ok) {
         const trJson = await trRes.json();
         const translated = trJson?.data?.text || trJson?.data?.translatedText || trJson?.data || trJson?.text || '';
@@ -1280,7 +1281,7 @@ async function doSearch1688() {
       正在搜索1688供应商... Searching 1688 for "${searchKeyword}"...
     </div>`);
     // Step 2: search 1688
-    const res = await fetch(`${TMAPI_BASE}/ali/search/items?keyword=${encodeURIComponent(searchKeyword)}&apiToken=${TMAPI_TOKEN}`);
+    const res = await fetch(CORS_PROXY + encodeURIComponent(`${TMAPI_BASE}/ali/search/items?keyword=${encodeURIComponent(searchKeyword)}&apiToken=${TMAPI_TOKEN}`));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
     const raw = json?.data?.items || json?.data?.data || json?.data || json?.items || [];
