@@ -13,15 +13,8 @@ const CORS_HEADERS = {
 // Only proxy images from known alicdn/1688 domains
 const ALLOWED_IMAGE_HOSTS = ['cbu01.alicdn.com', 'alicdn.com', 'img.alicdn.com', '1688.com', 'aliyuncs.com'];
 
-// Domains allowed for og:image scraping (product reference links)
-const ALLOWED_SCRAPE_HOSTS = [
-  'aliexpress.com', 'www.aliexpress.com', 'aliexpress.us',
-  'shein.com', 'www.shein.com', 'us.shein.com', 'nl.shein.com',
-  'amazon.com', 'www.amazon.com', 'amazon.nl', 'amazon.de',
-  'temu.com', 'www.temu.com',
-  'shopee.com', 'shopee.sg', 'shopee.co.id',
-  'detail.1688.com', '1688.com',
-];
+// Block internal/private hosts for scraping; allow any public URL
+const BLOCKED_SCRAPE_HOSTS = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.0\.0\.0|::1)/;
 
 // Use https.Agent with rejectUnauthorized:false — api.tmapi.top has an invalid SSL cert
 const agent = new https.Agent({ rejectUnauthorized: false });
@@ -228,50 +221,67 @@ module.exports = async function handler(req, res) {
       res.end(JSON.stringify({ error: 'invalid scrape_url' }));
       return;
     }
-    const scrapeHostAllowed = ALLOWED_SCRAPE_HOSTS.some(
-      h => parsedScrape.hostname === h || parsedScrape.hostname.endsWith('.' + h)
-    );
-    if (!scrapeHostAllowed) {
+    if (BLOCKED_SCRAPE_HOSTS.test(parsedScrape.hostname)) {
       res.writeHead(403, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'scrape host not allowed', host: parsedScrape.hostname }));
       return;
     }
     try {
       console.log(`[tmapi] scrapeimage → ${scrapeUrl}`);
-      const html = await httpsGetHtml(scrapeUrl);
+      let imageUrl = null;
 
-      function metaContent(property, isName = false) {
-        const attr = isName ? 'name' : 'property';
-        const m = html.match(new RegExp(`<meta[^>]+${attr}=["']${property}["'][^>]+content=["']([^"']+)["']`, 'i'))
-          || html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+${attr}=["']${property}["']`, 'i'));
-        return m?.[1] || null;
-      }
-
-      // Priority: og:image:secure_url → og:image → twitter:image:src → twitter:image → large <img>
-      let imageUrl = metaContent('og:image:secure_url')
-        || metaContent('og:image')
-        || metaContent('twitter:image:src', true)
-        || metaContent('twitter:image', true);
-
-      // Fallback: first <img> with width attribute >= 400
-      if (!imageUrl) {
-        const imgTags = html.matchAll(/<img[^>]+>/gi);
-        for (const [tag] of imgTags) {
-          const wMatch = tag.match(/width=["']?(\d+)/i);
-          const srcMatch = tag.match(/src=["']([^"']+)["']/i);
-          if (wMatch && parseInt(wMatch[1]) >= 400 && srcMatch) {
-            const src = srcMatch[1];
-            if (src.startsWith('http')) { imageUrl = src; break; }
+      // ── Shopify product page: try .json API first (full-res images array) ──
+      if (parsedScrape.pathname.includes('/products/')) {
+        try {
+          const jsonUrl = `${parsedScrape.origin}${parsedScrape.pathname.replace(/\/?$/, '')}.json`;
+          console.log(`[tmapi] trying Shopify JSON: ${jsonUrl}`);
+          const jsonHtml = await httpsGetHtml(jsonUrl);
+          const shopifyData = JSON.parse(jsonHtml);
+          const firstImg = shopifyData?.product?.images?.[0]?.src || null;
+          if (firstImg) {
+            // Strip Shopify size suffix (e.g. _800x.jpg → .jpg) to get master
+            imageUrl = firstImg.replace(/_(pico|icon|thumb|small|compact|medium|large|grande|\d+x\d*|\d*x\d+)(?=\.)/, '');
+            console.log(`[tmapi] Shopify JSON image: ${imageUrl}`);
           }
+        } catch (e) {
+          console.warn('[tmapi] Shopify JSON failed, falling back to HTML scrape:', e.message);
         }
       }
 
-      // Strip query strings that resize images (e.g. AliExpress appends _350x350.jpg)
-      if (imageUrl) {
-        imageUrl = imageUrl
-          .replace(/_\d+x\d+(\.\w+)(\?.*)?$/, '$1')   // AliExpress thumbnail suffix
-          .replace(/\?.*$/, '')                          // remove query string
-          .split('_.webp')[0] + (imageUrl.includes('_.webp') ? '.jpg' : '');
+      // ── HTML scrape fallback ─────────────────────────────────────────────
+      if (!imageUrl) {
+        const html = await httpsGetHtml(scrapeUrl);
+
+        function metaContent(property, isName = false) {
+          const attr = isName ? 'name' : 'property';
+          const m = html.match(new RegExp(`<meta[^>]+${attr}=["']${property}["'][^>]+content=["']([^"']+)["']`, 'i'))
+            || html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+${attr}=["']${property}["']`, 'i'));
+          return m?.[1] || null;
+        }
+
+        // Priority: og:image:secure_url → og:image → twitter:image:src → twitter:image → large <img>
+        imageUrl = metaContent('og:image:secure_url')
+          || metaContent('og:image')
+          || metaContent('twitter:image:src', true)
+          || metaContent('twitter:image', true);
+
+        // Last resort: first <img> with width >= 400
+        if (!imageUrl) {
+          for (const [tag] of html.matchAll(/<img[^>]+>/gi)) {
+            const wMatch = tag.match(/width=["']?(\d+)/i);
+            const srcMatch = tag.match(/src=["']([^"']+)["']/i);
+            if (wMatch && parseInt(wMatch[1]) >= 400 && srcMatch?.[1]?.startsWith('http')) {
+              imageUrl = srcMatch[1]; break;
+            }
+          }
+        }
+
+        // Strip AliExpress thumbnail suffixes and query strings
+        if (imageUrl) {
+          imageUrl = imageUrl
+            .replace(/_\d+x\d+(\.\w+)(\?.*)?$/, '$1')
+            .replace(/\?.*$/, '');
+        }
       }
 
       console.log(`[tmapi] scrapeimage result: ${imageUrl}`);
