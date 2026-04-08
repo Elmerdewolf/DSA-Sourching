@@ -15,11 +15,14 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { endpoint, keyword, item_id } = req.query;
+  // Parse query params with the modern URL constructor — avoids deprecated url.parse()
+  const { searchParams } = new URL(req.url, 'http://localhost');
+  const endpoint = searchParams.get('endpoint');
+  const keyword  = searchParams.get('keyword');
+  const item_id  = searchParams.get('item_id');
+  const text     = searchParams.get('text');
 
   let upstreamUrl;
-
-  const { text } = req.query;
 
   if (endpoint === 'search') {
     if (!keyword) {
