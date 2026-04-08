@@ -1,0 +1,12 @@
+# Data files — contain real business data, do not expose publicly
+data/
+quotes/
+
+# Local utility scripts (Windows-only, not needed on GitHub Pages)
+*.ps1
+*.bat
+启动预览.bat
+
+# Misc
+.DS_Store
+Thumbs.db
