@@ -1,3 +1,5 @@
+const https = require('https');
+
 const TMAPI_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6IkRTQSIsIkNvbWlkIjpudWxsLCJSb2xlaWQiOm51bGwsImlzcyI6InRtYXBpIiwic3ViIjoiRFNBIiwiYXVkIjpbIiJdLCJpYXQiOjE3NDI5ODczNzB9.I2Ty0TtKYE_zHiuT071RjDgsM7x4UC7rePJD0c4qR9M';
 const TMAPI_BASE = 'https://api.tmapi.top';
 
@@ -10,24 +12,30 @@ const CORS_HEADERS = {
 // Only proxy images from known alicdn/1688 domains
 const ALLOWED_IMAGE_HOSTS = ['cbu01.alicdn.com', 'alicdn.com', 'img.alicdn.com', '1688.com', 'aliyuncs.com'];
 
-async function tmapiFetch(url) {
+// Use https.Agent with rejectUnauthorized:false — api.tmapi.top has an invalid SSL cert
+const agent = new https.Agent({ rejectUnauthorized: false });
+
+function httpsGet(url, reqHeaders) {
   const logUrl = url.replace(TMAPI_TOKEN, '[TOKEN]');
   console.log(`[tmapi] FETCH → ${logUrl}`);
-  let upstream;
-  try {
-    upstream = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${TMAPI_TOKEN}` },
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { agent, headers: reqHeaders }, (res) => {
+      const chunks = [];
+      res.on('data', chunk => chunks.push(chunk));
+      res.on('end', () => {
+        const body = Buffer.concat(chunks);
+        console.log(`[tmapi] status=${res.statusCode} body=${body.slice(0, 500).toString()}`);
+        resolve({ status: res.statusCode, headers: res.headers, buffer: body });
+      });
     });
-  } catch (err) {
-    console.error(`[tmapi] fetch() threw for ${logUrl}:`, err.message, err.stack);
-    throw err;
-  }
-  const rawText = await upstream.text();
-  console.log(`[tmapi] status=${upstream.status} body=${rawText.slice(0, 500)}`);
-  return { status: upstream.status, rawText };
+    req.on('error', (err) => {
+      console.error(`[tmapi] request error for ${logUrl}:`, err.message);
+      reject(err);
+    });
+    req.setTimeout(25000, () => { req.destroy(new Error('Request timed out')); });
+  });
 }
 
-// CommonJS export — required when there is no "type":"module" in package.json
 module.exports = async function handler(req, res) {
   console.log(`[tmapi] invoked method=${req.method} url=${req.url}`);
 
@@ -41,7 +49,6 @@ module.exports = async function handler(req, res) {
   const endpoint = searchParams.get('endpoint');
   const keyword  = searchParams.get('keyword');
   const item_id  = searchParams.get('item_id');
-  const text     = searchParams.get('text');
   const img_url  = searchParams.get('img_url');
   const url      = searchParams.get('url');
 
@@ -68,17 +75,17 @@ module.exports = async function handler(req, res) {
     }
     try {
       console.log(`[tmapi] image proxy → ${url}`);
-      const imgRes = await fetch(url, {
-        headers: { 'Referer': 'https://www.1688.com/', 'User-Agent': 'Mozilla/5.0' },
+      const { status, headers, buffer } = await httpsGet(url, {
+        'Referer': 'https://www.1688.com/',
+        'User-Agent': 'Mozilla/5.0',
       });
-      const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
-      const buffer = await imgRes.arrayBuffer();
-      res.writeHead(imgRes.status, {
+      const contentType = headers['content-type'] || 'image/jpeg';
+      res.writeHead(status, {
         ...CORS_HEADERS,
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=86400',
       });
-      res.end(Buffer.from(buffer));
+      res.end(buffer);
     } catch (err) {
       console.error('[tmapi] image fetch failed:', err.message);
       res.writeHead(502, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
@@ -114,22 +121,15 @@ module.exports = async function handler(req, res) {
     }
     upstreamUrl = `${TMAPI_BASE}/1688/item_detail?item_id=${encodeURIComponent(item_id)}&apiToken=${TMAPI_TOKEN}`;
 
-  } else if (endpoint === 'translate') {
-    if (!text) {
-      res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'text is required' }));
-      return;
-    }
-    upstreamUrl = `${TMAPI_BASE}/tools/translate?text=${encodeURIComponent(text)}&target_lang=zh&apiToken=${TMAPI_TOKEN}`;
-
   } else {
     res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'endpoint must be "search", "imgsearch", "detail", "translate", or "image"' }));
+    res.end(JSON.stringify({ error: 'endpoint must be "search", "imgsearch", "detail", or "image"' }));
     return;
   }
 
   try {
-    const { status, rawText } = await tmapiFetch(upstreamUrl);
+    const { status, buffer } = await httpsGet(upstreamUrl, { 'Authorization': `Bearer ${TMAPI_TOKEN}` });
+    const rawText = buffer.toString();
     let data;
     try {
       data = JSON.parse(rawText);

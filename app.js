@@ -1296,9 +1296,9 @@ async function doSearch1688() {
   area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-500);font-size:13px;">${S1688_SPIN}正在搜索"${keyword}"... Searching...</div>`;
   statusLine.textContent = '';
 
-  // Keyword search — direct browser call to TMAPI (Vercel proxy blocked by api.tmapi.top)
+  // Keyword search via Vercel proxy (bypasses api.tmapi.top SSL cert issue)
   try {
-    const res = await fetch(`${TMAPI_BASE}/1688/search/items?keyword=${encodeURIComponent(keyword)}&apiToken=${TMAPI_TOKEN}`);
+    const res = await fetch(`/api/tmapi?endpoint=search&keyword=${encodeURIComponent(keyword)}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
     const raw = json?.data?.items || json?.items || [];
@@ -1406,7 +1406,7 @@ async function fetch1688ItemDetail() {
   s1688SelectedSupplier = null;
 
   try {
-    const res = await fetch(`${TMAPI_BASE}/1688/item_detail?item_id=${encodeURIComponent(itemId)}&apiToken=${TMAPI_TOKEN}`);
+    const res = await fetch(`/api/tmapi?endpoint=detail&item_id=${encodeURIComponent(itemId)}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
     const d = json?.data || json;
