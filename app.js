@@ -1298,7 +1298,29 @@ async function doSearch1688() {
   const refLink = getProductRefLink(p);
   console.log('[1688 search] rawImg=', rawImg.slice(0,80), 'imgUrl=', imgUrl||'(none)', 'refLink=', refLink||'(none)');
 
-  // If image is base64 and we have a reference link, scrape og:image from the ref page
+  // If image is base64: upload to imgbb to get a public URL for image search
+  const isBase64 = rawImg.startsWith('data:');
+  if (!imgUrl && isBase64) {
+    area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-500);font-size:13px;">${S1688_SPIN}正在上传图片... Uploading image...</div>`;
+    try {
+      const uploadRes = await fetch('/api/tmapi?endpoint=uploadimage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: rawImg }),
+      });
+      if (uploadRes.ok) {
+        const uploadJson = await uploadRes.json();
+        if (uploadJson.imageUrl) {
+          imgUrl = uploadJson.imageUrl;
+          console.log('[1688 search] imgbb uploaded imageUrl=', imgUrl);
+        }
+      }
+    } catch (err) {
+      console.warn('[1688 search] imgbb upload failed:', err.message);
+    }
+  }
+
+  // If no image yet and we have a reference link, scrape og:image from the ref page
   if (!imgUrl && refLink) {
     area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-500);font-size:13px;">${S1688_SPIN}正在获取产品图片... Fetching product image...</div>`;
     try {

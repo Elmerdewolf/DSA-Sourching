@@ -1,6 +1,7 @@
 const https = require('https');
 
 const TMAPI_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6IkRTQSIsIkNvbWlkIjpudWxsLCJSb2xlaWQiOm51bGwsImlzcyI6InRtYXBpIiwic3ViIjoiRFNBIiwiYXVkIjpbIiJdLCJpYXQiOjE3NDI5ODczNzB9.I2Ty0TtKYE_zHiuT071RjDgsM7x4UC7rePJD0c4qR9M';
+const IMGBB_API_KEY = 'PASTE_YOUR_IMGBB_KEY_HERE';
 const TMAPI_BASE = 'https://api.tmapi.top';
 
 const CORS_HEADERS = {
@@ -57,6 +58,38 @@ function httpsGetHtml(url, maxRedirects = 5) {
   });
 }
 
+// Upload base64 image to imgbb, returns public URL string
+function imgbbUpload(base64Data) {
+  return new Promise((resolve, reject) => {
+    const body = `key=${encodeURIComponent(IMGBB_API_KEY)}&image=${encodeURIComponent(base64Data)}`;
+    const req = https.request({
+      hostname: 'api.imgbb.com',
+      path: '/1/upload',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(body),
+      },
+      timeout: 20000,
+    }, (res) => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(Buffer.concat(chunks).toString());
+          const url = json?.data?.url || json?.data?.display_url || null;
+          if (url) resolve(url);
+          else reject(new Error('imgbb: no url in response — ' + JSON.stringify(json).slice(0, 200)));
+        } catch (e) { reject(e); }
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => req.destroy(new Error('imgbb upload timeout')));
+    req.write(body);
+    req.end();
+  });
+}
+
 function httpsGet(url, reqHeaders) {
   const logUrl = url.replace(TMAPI_TOKEN, '[TOKEN]');
   console.log(`[tmapi] FETCH → ${logUrl}`);
@@ -78,11 +111,21 @@ function httpsGet(url, reqHeaders) {
   });
 }
 
+// Read full POST body as string
+function readBody(req) {
+  return new Promise((resolve) => {
+    const chunks = [];
+    req.on('data', c => chunks.push(c));
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('error', () => resolve(''));
+  });
+}
+
 module.exports = async function handler(req, res) {
   console.log(`[tmapi] invoked method=${req.method} url=${req.url}`);
 
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, CORS_HEADERS);
+    res.writeHead(204, { ...CORS_HEADERS, 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' });
     res.end();
     return;
   }
@@ -133,6 +176,41 @@ module.exports = async function handler(req, res) {
       console.error('[tmapi] image fetch failed:', err.message);
       res.writeHead(502, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'image fetch failed', detail: err.message }));
+    }
+    return;
+  }
+
+  // ── Upload base64 image to imgbb → get public URL ────────────────────────
+  if (endpoint === 'uploadimage') {
+    if (!IMGBB_API_KEY || IMGBB_API_KEY === 'PASTE_YOUR_IMGBB_KEY_HERE') {
+      res.writeHead(503, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'imgbb API key not configured' }));
+      return;
+    }
+    let base64Data = '';
+    if (req.method === 'POST') {
+      const body = await readBody(req);
+      try { base64Data = JSON.parse(body).image || ''; } catch { base64Data = body; }
+    } else {
+      base64Data = searchParams.get('image') || '';
+    }
+    // Strip data URI prefix if present (data:image/jpeg;base64,...)
+    base64Data = base64Data.replace(/^data:[^;]+;base64,/, '');
+    if (!base64Data) {
+      res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'image (base64) is required' }));
+      return;
+    }
+    try {
+      console.log(`[tmapi] uploading ${base64Data.length} chars of base64 to imgbb`);
+      const imageUrl = await imgbbUpload(base64Data);
+      console.log(`[tmapi] imgbb uploaded → ${imageUrl}`);
+      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ imageUrl }));
+    } catch (err) {
+      console.error('[tmapi] imgbb upload failed:', err.message);
+      res.writeHead(502, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'imgbb upload failed', detail: err.message }));
     }
     return;
   }
