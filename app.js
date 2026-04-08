@@ -1221,11 +1221,30 @@ async function renderInquiry() {
   }).join('');
 }
 // ===========================
-// 1688 Supplier Finder
+// 1688 Supplier Search
 // ===========================
 let s1688ProductId = null;
 let s1688SelectedSupplier = null;
 let s1688CurrentProduct = null;
+let s1688ResultItems = [];
+
+const S1688_SPIN = `<svg class="spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5" style="vertical-align:middle;margin-right:6px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`;
+
+function normalize1688Item(item, fallbackUrl) {
+  const priceMin = item.priceRange?.[0] ?? item.price ?? item.priceText ?? '';
+  const priceMax = item.priceRange?.[1] ?? '';
+  const price = priceMax && priceMax !== priceMin ? `¥${priceMin}~¥${priceMax}` : (priceMin ? `¥${priceMin}` : '--');
+  const score = item.shopScore ?? item.sellerScore ?? item.creditLevel ?? '--';
+  return {
+    title: item.title || item.name || item.itemTitle || '未知产品',
+    img:   item.imgUrl || item.image || item.picUrl || item.pic || item.mainImage || '',
+    price,
+    moq:   item.minOrderQuantity ?? item.minOrderQty ?? item.moq ?? item.minPurchaseNum ?? '--',
+    shop:  item.shopName || item.sellerName || item.companyName || '--',
+    score: typeof score === 'number' ? score.toFixed(1) : String(score),
+    url:   item.detailUrl || item.itemUrl || item.url || fallbackUrl || ''
+  };
+}
 
 async function open1688Search(productId) {
   const products = await load('products');
@@ -1234,54 +1253,140 @@ async function open1688Search(productId) {
   s1688ProductId = productId;
   s1688CurrentProduct = p;
   s1688SelectedSupplier = null;
+  s1688ResultItems = [];
 
-  // Product name
   document.getElementById('s1688-product-name').textContent = p.name;
   document.getElementById('s1688-prod-title').textContent = p.name;
 
-  // Product image
   const imgEl = document.getElementById('s1688-prod-img');
   const imgPh = document.getElementById('s1688-prod-img-ph');
   const imgSrc = p.realImage || p.image || '';
-  if (imgSrc) {
-    imgEl.src = imgSrc;
-    imgEl.style.display = 'block';
-    imgPh.style.display = 'none';
-  } else {
-    imgEl.style.display = 'none';
-    imgPh.style.display = 'flex';
-  }
+  if (imgSrc) { imgEl.src = imgSrc; imgEl.style.display = 'block'; imgPh.style.display = 'none'; }
+  else { imgEl.style.display = 'none'; imgPh.style.display = 'flex'; }
 
-  // Reference link button
-  const refLink = getProductRefLink(p);
-  const refBtn = document.getElementById('s1688-reflink-btn');
-  refBtn.style.display = refLink ? 'inline-flex' : 'none';
-
-  // Reset state
+  document.getElementById('s1688-search-status-line').textContent = '';
+  document.getElementById('s1688-results-area').innerHTML = '';
+  document.getElementById('s1688-msg-section').style.display = 'none';
   document.getElementById('s1688-url-input').value = '';
   document.getElementById('s1688-detail-status').innerHTML = '';
-  document.getElementById('s1688-detail-result').style.display = 'none';
-  document.getElementById('s1688-msg-section').style.display = 'none';
+  document.getElementById('s1688-retry-btn').style.display = 'none';
+  document.getElementById('s1688-manual-section').removeAttribute('open');
   document.getElementById('btn-1688-proceed').disabled = true;
 
   openM('mo-1688');
+  doSearch1688();
 }
 
-function open1688ImageSearch() {
-  window.open('https://www.1688.com/page/searchByImage.html', '_blank');
+async function doSearch1688() {
+  const p = s1688CurrentProduct;
+  const area = document.getElementById('s1688-results-area');
+  const statusLine = document.getElementById('s1688-search-status-line');
+  const retryBtn = document.getElementById('s1688-retry-btn');
+
+  s1688ResultItems = [];
+  s1688SelectedSupplier = null;
+  retryBtn.style.display = 'none';
+  document.getElementById('s1688-msg-section').style.display = 'none';
+  document.getElementById('btn-1688-proceed').disabled = true;
+
+  area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-500);font-size:13px;">${S1688_SPIN}正在翻译关键词... Translating...</div>`;
+  statusLine.textContent = '';
+
+  // Step 1: translate product name to Chinese
+  let keyword = p.name;
+  try {
+    const trRes = await fetch(`/api/tmapi?endpoint=translate&text=${encodeURIComponent(p.name)}`);
+    if (trRes.ok) {
+      const trJson = await trRes.json();
+      const translated = trJson?.data?.text || trJson?.data?.translatedText || trJson?.data || trJson?.text || '';
+      if (translated && typeof translated === 'string' && translated.trim()) keyword = translated.trim();
+    }
+  } catch { /* fall through with original name */ }
+
+  area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-500);font-size:13px;">${S1688_SPIN}正在搜索"${keyword}"...</div>`;
+
+  // Step 2: search
+  try {
+    const res = await fetch(`/api/tmapi?endpoint=search&keyword=${encodeURIComponent(keyword)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const raw = json?.data?.items || json?.data?.data || (Array.isArray(json?.data) ? json.data : null) || json?.items || [];
+    const items = Array.isArray(raw) ? raw.slice(0, 5) : [];
+
+    if (items.length === 0) {
+      area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-400);font-size:13px;">
+        <div style="margin-bottom:8px;">未找到结果 No results found for "${keyword}"</div>
+        <div style="font-size:11px;">请展开下方手动输入链接 Expand the section below to paste a URL manually</div>
+      </div>`;
+      statusLine.textContent = '未找到结果';
+      retryBtn.style.display = 'inline-flex';
+      document.getElementById('s1688-manual-section').setAttribute('open', '');
+      return;
+    }
+
+    s1688ResultItems = items.map(item => normalize1688Item(item, ''));
+    statusLine.textContent = `找到 ${s1688ResultItems.length} 个结果 · 点击选择`;
+    renderSearch1688Cards();
+
+  } catch (err) {
+    console.error('[1688 search] error:', err);
+    area.innerHTML = `<div style="text-align:center;padding:28px;">
+      <div style="color:var(--danger);font-weight:600;margin-bottom:4px;">搜索失败 Search failed</div>
+      <div style="font-size:12px;color:var(--gray-500);">${err.message}</div>
+    </div>`;
+    statusLine.textContent = '搜索失败';
+    retryBtn.style.display = 'inline-flex';
+    document.getElementById('s1688-manual-section').setAttribute('open', '');
+  }
 }
 
-function open1688RefLink() {
-  const link = getProductRefLink(s1688CurrentProduct);
-  if (link) window.open(link, '_blank');
+function renderSearch1688Cards() {
+  const area = document.getElementById('s1688-results-area');
+  area.innerHTML = s1688ResultItems.map((s, i) => `
+    <div id="s1688-card-${i}" class="s1688-result-item" onclick="select1688Supplier(${i})"
+      style="display:flex;gap:12px;padding:11px 13px;border:2px solid var(--gray-200);border-radius:8px;
+             cursor:pointer;margin-bottom:8px;transition:all 0.15s;align-items:flex-start;">
+      ${s.img
+        ? `<img src="${s.img}" style="width:68px;height:68px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none'">`
+        : `<div style="width:68px;height:68px;background:var(--gray-100);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`}
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${s.title}</div>
+        <div style="font-size:12px;color:var(--gray-600);margin-bottom:5px;">🏪 ${s.shop}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;">
+          <span style="color:var(--danger);font-weight:600;">${s.price}</span>
+          <span style="color:var(--gray-500);">起订量 MOQ: <b>${s.moq}</b></span>
+          <span style="color:var(--gray-500);">评分 <b>${s.score}</b></span>
+        </div>
+      </div>
+      <div id="s1688-check-${i}" style="display:none;flex-shrink:0;width:22px;height:22px;background:var(--primary);
+           border-radius:50%;color:white;font-size:13px;align-items:center;justify-content:center;margin-top:2px;">✓</div>
+    </div>`).join('');
+}
+
+function select1688Supplier(idx) {
+  s1688SelectedSupplier = s1688ResultItems[idx];
+  if (!s1688SelectedSupplier) return;
+
+  s1688ResultItems.forEach((_, i) => {
+    const card = document.getElementById(`s1688-card-${i}`);
+    const check = document.getElementById(`s1688-check-${i}`);
+    if (card) card.classList.remove('selected');
+    if (check) check.style.display = 'none';
+  });
+
+  const selCard = document.getElementById(`s1688-card-${idx}`);
+  const selCheck = document.getElementById(`s1688-check-${idx}`);
+  if (selCard) selCard.classList.add('selected');
+  if (selCheck) selCheck.style.display = 'flex';
+
+  document.getElementById('btn-1688-proceed').disabled = false;
+  generate1688SupplierMsg(s1688SelectedSupplier);
 }
 
 function extract1688ItemId(url) {
   if (!url) return null;
-  // https://detail.1688.com/offer/123456789.html
-  const m = url.match(/offer[\/](\d+)/i);
+  const m = url.match(/offer[/](\d+)/i);
   if (m) return m[1];
-  // fallback: any long numeric sequence
   const n = url.match(/(\d{8,})/);
   return n ? n[1] : null;
 }
@@ -1289,66 +1394,42 @@ function extract1688ItemId(url) {
 async function fetch1688ItemDetail() {
   const url = document.getElementById('s1688-url-input').value.trim();
   const statusEl = document.getElementById('s1688-detail-status');
-  const resultEl = document.getElementById('s1688-detail-result');
+  const spin = document.getElementById('s1688-fetch-spin');
 
   if (!url) { toast('请先粘贴1688产品链接 Paste a 1688 product URL first', 'err'); return; }
 
   const itemId = extract1688ItemId(url);
   if (!itemId) {
-    statusEl.innerHTML = `<div style="color:var(--danger);font-size:13px;padding:8px 0;">无法识别商品ID，请确认是有效的1688链接 Could not extract item ID from URL</div>`;
+    statusEl.innerHTML = `<div style="color:var(--danger);font-size:12px;">无法识别商品ID，请确认是有效的1688链接 Could not extract item ID</div>`;
     return;
   }
 
-  statusEl.innerHTML = `<div style="padding:12px 0;color:var(--gray-500);font-size:13px;">
-    <svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5" style="margin-right:6px;vertical-align:middle;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-    正在获取商品详情... Fetching item details...
-  </div>`;
-  resultEl.style.display = 'none';
-  document.getElementById('s1688-msg-section').style.display = 'none';
+  if (spin) spin.style.display = 'inline-block';
+  statusEl.innerHTML = `<div style="color:var(--gray-500);font-size:12px;margin-top:4px;">${S1688_SPIN}正在获取商品详情... Fetching...</div>`;
   document.getElementById('btn-1688-proceed').disabled = true;
   s1688SelectedSupplier = null;
 
   try {
-    const apiUrl = `/api/tmapi?endpoint=detail&item_id=${encodeURIComponent(itemId)}`;
-    console.log('[1688 detail] fetching:', apiUrl);
-    const res = await fetch(apiUrl);
-    console.log('[1688 detail] status:', res.status);
+    const res = await fetch(`/api/tmapi?endpoint=detail&item_id=${encodeURIComponent(itemId)}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
-    console.log('[1688 detail] response:', JSON.stringify(json));
-
     const d = json?.data || json;
-    const priceMin = d?.priceRange?.[0] || d?.price || d?.priceText || '';
-    const priceMax = d?.priceRange?.[1] || '';
-    const price = priceMax && priceMax !== priceMin ? `¥${priceMin}~${priceMax}` : (priceMin ? `¥${priceMin}` : '--');
-    const score = d?.shopScore || d?.sellerScore || d?.creditLevel || '--';
 
-    s1688SelectedSupplier = {
-      title: d?.title || d?.name || '未知产品',
-      img:   d?.imgUrl || d?.image || d?.mainImage || '',
-      price,
-      moq:   d?.minOrderQuantity || d?.minOrderQty || d?.moq || '--',
-      shop:  d?.shopName || d?.sellerName || d?.companyName || '--',
-      score: typeof score === 'number' ? score.toFixed(1) : String(score),
-      url
-    };
+    s1688SelectedSupplier = normalize1688Item(d, url);
 
-    // Render detail card
+    // Inject the manually-fetched result as a single selectable card at the top of results area
+    s1688ResultItems = [s1688SelectedSupplier];
+    renderSearch1688Cards();
+    select1688Supplier(0);
+
     statusEl.innerHTML = '';
-    document.getElementById('s1688-detail-img').src = s1688SelectedSupplier.img;
-    document.getElementById('s1688-detail-title').textContent = s1688SelectedSupplier.title;
-    document.getElementById('s1688-detail-shop').textContent = '🏪 ' + s1688SelectedSupplier.shop;
-    document.getElementById('s1688-detail-price').textContent = s1688SelectedSupplier.price;
-    document.getElementById('s1688-detail-moq').textContent = '起订量 MOQ: ' + s1688SelectedSupplier.moq;
-    document.getElementById('s1688-detail-score').textContent = '评分 Rating: ' + s1688SelectedSupplier.score;
-    resultEl.style.display = 'block';
-
-    document.getElementById('btn-1688-proceed').disabled = false;
-    generate1688SupplierMsg(s1688SelectedSupplier);
+    document.getElementById('s1688-manual-section').removeAttribute('open');
 
   } catch (err) {
     console.error('[1688 detail] error:', err);
-    statusEl.innerHTML = `<div style="color:var(--danger);font-size:13px;padding:8px 0;">获取失败 Failed: ${err.message}</div>`;
+    statusEl.innerHTML = `<div style="color:var(--danger);font-size:12px;margin-top:4px;">获取失败 Failed: ${err.message}</div>`;
+  } finally {
+    if (spin) spin.style.display = 'none';
   }
 }
 

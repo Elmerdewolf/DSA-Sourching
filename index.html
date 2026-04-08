@@ -742,83 +742,68 @@ tbody tr:hover { background: var(--gray-50); }
 <!-- 询价模态框 -->
 <!-- 1688供应商搜索模态框 Supplier Search Modal -->
 <div id="mo-1688" class="modal-overlay">
-  <div class="modal" style="max-width:660px;">
+  <div class="modal" style="max-width:680px;">
     <div class="modal-header">
       <div>
-        <h3>1688供应商查找 Find Supplier on 1688</h3>
+        <h3>1688供应商搜索 Supplier Search</h3>
         <div id="s1688-product-name" style="font-size:12px;color:var(--gray-500);margin-top:2px;"></div>
       </div>
       <button class="modal-close" onclick="closeM('mo-1688')">&times;</button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" style="padding:0;">
 
-      <!-- Product reference panel -->
-      <div style="display:flex;gap:16px;padding:14px;background:var(--gray-50);border-radius:8px;margin-bottom:16px;align-items:flex-start;">
-        <img id="s1688-prod-img" style="width:80px;height:80px;object-fit:cover;border-radius:6px;flex-shrink:0;display:none;">
-        <div id="s1688-prod-img-ph" style="width:80px;height:80px;background:var(--gray-200);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <!-- Product strip -->
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 18px;background:var(--gray-50);border-bottom:1px solid var(--gray-100);">
+        <img id="s1688-prod-img" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;display:none;" onerror="this.style.display='none'">
+        <div id="s1688-prod-img-ph" style="width:48px;height:48px;background:var(--gray-200);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         </div>
         <div style="flex:1;min-width:0;">
-          <div id="s1688-prod-title" style="font-weight:600;font-size:14px;margin-bottom:10px;"></div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;">
-            <button class="btn btn-sm btn-primary" onclick="open1688ImageSearch()">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-              以图搜图 Search by Image
-            </button>
-            <button id="s1688-reflink-btn" class="btn btn-sm btn-outline" onclick="open1688RefLink()" style="display:none;">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-              打开参考链接 Open Reference Link
+          <div id="s1688-prod-title" style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+          <div id="s1688-search-status-line" style="font-size:11px;color:var(--gray-500);margin-top:2px;"></div>
+        </div>
+        <button class="btn btn-sm btn-outline" onclick="doSearch1688()" id="s1688-retry-btn" style="display:none;white-space:nowrap;">
+          重新搜索 Retry
+        </button>
+      </div>
+
+      <div style="padding:16px 18px;">
+
+        <!-- Auto-search results area -->
+        <div id="s1688-results-area" style="margin-bottom:4px;"></div>
+
+        <!-- Supplier message (shown after selection) -->
+        <div id="s1688-msg-section" style="display:none;border-top:1px solid var(--gray-100);padding-top:14px;margin-top:8px;">
+          <label class="form-label">供应商询价消息 Supplier Message</label>
+          <textarea id="s1688-msg" class="form-control" rows="8" style="font-size:13px;line-height:1.7;font-family:inherit;resize:vertical;"></textarea>
+          <div style="margin-top:8px;display:flex;justify-content:flex-end;">
+            <button class="btn btn-sm btn-outline" onclick="copySupplierMsg()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              复制消息 Copy Message
             </button>
           </div>
-          <div style="font-size:11px;color:var(--gray-400);margin-top:8px;">将产品图片拖拽到1688以图搜图页面 Drag product image to the 1688 image search page</div>
         </div>
-      </div>
 
-      <!-- Manual URL input -->
-      <div class="form-group" style="margin-bottom:8px;">
-        <label class="form-label">粘贴1688产品链接 Paste 1688 Product URL</label>
-        <div style="display:flex;gap:8px;">
-          <input type="url" id="s1688-url-input" class="form-control" placeholder="https://detail.1688.com/offer/...">
-          <button class="btn btn-primary" style="white-space:nowrap;" onclick="fetch1688ItemDetail()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-            获取详情 Fetch
-          </button>
-        </div>
-      </div>
-
-      <!-- Item detail result -->
-      <div id="s1688-detail-status"></div>
-      <div id="s1688-detail-result" style="display:none;padding:14px;border:2px solid var(--primary);border-radius:8px;margin-bottom:16px;">
-        <div style="display:flex;gap:12px;align-items:flex-start;">
-          <img id="s1688-detail-img" style="width:72px;height:72px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none'">
-          <div style="flex:1;min-width:0;">
-            <div id="s1688-detail-title" style="font-size:13px;font-weight:600;margin-bottom:6px;"></div>
-            <div id="s1688-detail-shop" style="font-size:12px;color:var(--gray-600);margin-bottom:4px;"></div>
-            <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;">
-              <span id="s1688-detail-price" style="color:var(--danger);font-weight:600;"></span>
-              <span id="s1688-detail-moq" style="color:var(--gray-500);"></span>
-              <span id="s1688-detail-score" style="color:var(--gray-500);"></span>
-            </div>
+        <!-- Manual URL fallback (collapsible) -->
+        <details id="s1688-manual-section" style="margin-top:14px;">
+          <summary style="font-size:12px;color:var(--gray-500);cursor:pointer;padding:4px 0;user-select:none;">
+            未找到合适产品？手动粘贴链接 Not found? Paste a 1688 URL manually
+          </summary>
+          <div style="margin-top:10px;display:flex;gap:8px;">
+            <input type="url" id="s1688-url-input" class="form-control" placeholder="https://detail.1688.com/offer/...">
+            <button class="btn btn-primary" style="white-space:nowrap;" onclick="fetch1688ItemDetail()">
+              <svg class="spin" id="s1688-fetch-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:none;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              获取详情 Fetch
+            </button>
           </div>
-        </div>
-      </div>
+          <div id="s1688-detail-status" style="margin-top:6px;"></div>
+        </details>
 
-      <!-- Supplier message -->
-      <div id="s1688-msg-section" style="display:none;border-top:1px solid var(--gray-100);padding-top:14px;">
-        <label class="form-label">供应商询价消息 Supplier Message</label>
-        <textarea id="s1688-msg" class="form-control" rows="9" style="font-size:13px;line-height:1.6;font-family:inherit;"></textarea>
-        <div style="margin-top:8px;display:flex;justify-content:flex-end;">
-          <button class="btn btn-sm btn-outline" onclick="copySupplierMsg()">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            复制消息 Copy Message
-          </button>
-        </div>
       </div>
-
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeM('mo-1688')">取消 Cancel</button>
-      <button class="btn btn-outline" onclick="skip1688ToInquiry()">跳过 Skip to Sourcing</button>
+      <button class="btn btn-outline" onclick="skip1688ToInquiry()">跳过 Skip</button>
       <button id="btn-1688-proceed" class="btn btn-primary" onclick="proceed1688ToInquiry()" disabled>
         继续询价 Continue to Sourcing
       </button>

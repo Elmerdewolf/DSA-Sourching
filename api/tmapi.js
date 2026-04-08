@@ -19,6 +19,8 @@ export default async function handler(req, res) {
 
   let upstreamUrl;
 
+  const { text } = req.query;
+
   if (endpoint === 'search') {
     if (!keyword) {
       res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
@@ -33,9 +35,16 @@ export default async function handler(req, res) {
       return;
     }
     upstreamUrl = `${TMAPI_BASE}/ali/item_detail?item_id=${encodeURIComponent(item_id)}&apiToken=${TMAPI_TOKEN}`;
+  } else if (endpoint === 'translate') {
+    if (!text) {
+      res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'text is required' }));
+      return;
+    }
+    upstreamUrl = `${TMAPI_BASE}/translate/text?text=${encodeURIComponent(text)}&target_lang=zh&apiToken=${TMAPI_TOKEN}`;
   } else {
     res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'endpoint must be "search" or "detail"' }));
+    res.end(JSON.stringify({ error: 'endpoint must be "search", "detail", or "translate"' }));
     return;
   }
 
