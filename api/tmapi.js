@@ -111,7 +111,7 @@ module.exports = async function handler(req, res) {
       res.end(JSON.stringify({ error: 'img_url is required' }));
       return;
     }
-    upstreamUrl = `${TMAPI_BASE}/1688/global/search/image/v2?img_url=${encodeURIComponent(img_url)}&apiToken=${TMAPI_TOKEN}`;
+    upstreamUrl = `${TMAPI_BASE}/1688/search/image?img_url=${encodeURIComponent(img_url)}&apiToken=${TMAPI_TOKEN}`;
 
   } else if (endpoint === 'detail') {
     if (!item_id) {

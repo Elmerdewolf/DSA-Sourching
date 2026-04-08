@@ -1292,11 +1292,44 @@ async function doSearch1688() {
   document.getElementById('s1688-msg-section').style.display = 'none';
   document.getElementById('btn-1688-proceed').disabled = true;
 
+  const imgUrl = p.realImage || p.image || '';
   const keyword = p.name;
-  area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-500);font-size:13px;">${S1688_SPIN}正在搜索"${keyword}"... Searching...</div>`;
-  statusLine.textContent = '';
 
-  // Keyword search via Vercel proxy (bypasses api.tmapi.top SSL cert issue)
+  if (imgUrl) {
+    // Image search — visually similar results from 1688
+    area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-500);font-size:13px;">${S1688_SPIN}正在以图搜索... Image searching...</div>`;
+    statusLine.textContent = '';
+    try {
+      const res = await fetch(`/api/tmapi?endpoint=imgsearch&img_url=${encodeURIComponent(imgUrl)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const raw = json?.data?.items || json?.items || [];
+      const items = Array.isArray(raw) ? raw.slice(0, 5) : [];
+
+      if (items.length === 0) {
+        area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-400);font-size:13px;">
+          <div style="margin-bottom:8px;">未找到结果 No image results</div>
+          <div style="font-size:11px;">请展开下方手动输入链接 Expand below to paste a URL manually</div>
+        </div>`;
+        statusLine.textContent = '未找到结果';
+        retryBtn.style.display = 'inline-flex';
+        document.getElementById('s1688-manual-section').setAttribute('open', '');
+        return;
+      }
+
+      s1688ResultItems = items.map(item => normalize1688Item(item, ''));
+      statusLine.textContent = `以图找到 ${s1688ResultItems.length} 个结果 · 点击选择`;
+      renderSearch1688Cards();
+      return;
+    } catch (err) {
+      console.warn('[1688 imgsearch] failed, falling back to keyword:', err.message);
+      // fall through to keyword search
+    }
+  }
+
+  // Keyword search fallback (used when no image or image search fails)
+  area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-500);font-size:13px;">${S1688_SPIN}正在关键词搜索"${keyword}"... Searching...</div>`;
+  statusLine.textContent = '';
   try {
     const res = await fetch(`/api/tmapi?endpoint=search&keyword=${encodeURIComponent(keyword)}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
