@@ -6,7 +6,7 @@
 
 // === 1688 API Config ===
 const TMAPI_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6IkRTQSIsIkNvbWlkIjpudWxsLCJSb2xlaWQiOm51bGwsImlzcyI6InRtYXBpIiwic3ViIjoiRFNBIiwiYXVkIjpbIiJdLCJpYXQiOjE3NDI5ODczNzB9.I2Ty0TtKYE_zHiuT071RjDgsM7x4UC7rePJD0c4qR9M';
-const TMAPI_BASE = 'https://api.tmapi.top';
+const TMAPI_BASE = 'https://api.tmapi.io';
 
 const STORAGE = { products: 'qms_products', logistics: 'qms_logistics', freight: 'qms_freight', quotes: 'qms_quotes', users: 'qms_users' };
 const DIR_DB = 'qms_dir_db';
@@ -1231,18 +1231,21 @@ let s1688ResultItems = [];
 const S1688_SPIN = `<svg class="spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5" style="vertical-align:middle;margin-right:6px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`;
 
 function normalize1688Item(item, fallbackUrl) {
-  const priceMin = item.priceRange?.[0] ?? item.price ?? item.priceText ?? '';
-  const priceMax = item.priceRange?.[1] ?? '';
-  const price = priceMax && priceMax !== priceMin ? `¥${priceMin}~¥${priceMax}` : (priceMin ? `¥${priceMin}` : '--');
-  const score = item.shopScore ?? item.sellerScore ?? item.creditLevel ?? '--';
+  // Supports both /1688/search/items shape and /1688/item_detail shape
+  const price = item.price_info?.sale_price || item.price_info?.price || item.price || '--';
+  const priceStr = price && price !== '--' ? `¥${price}` : '--';
+  const score = item.shop_info?.score_info?.composite_score
+    ?? item.shopScore ?? item.sellerScore ?? item.creditLevel ?? '--';
+  const shop = item.shop_info?.company_name
+    || item.shopName || item.sellerName || item.companyName || '--';
   return {
     title: item.title || item.name || item.itemTitle || '未知产品',
-    img:   item.imgUrl || item.image || item.picUrl || item.pic || item.mainImage || '',
-    price,
-    moq:   item.minOrderQuantity ?? item.minOrderQty ?? item.moq ?? item.minPurchaseNum ?? '--',
-    shop:  item.shopName || item.sellerName || item.companyName || '--',
-    score: typeof score === 'number' ? score.toFixed(1) : String(score),
-    url:   item.detailUrl || item.itemUrl || item.url || fallbackUrl || ''
+    img:   item.img || item.imgUrl || item.image || item.picUrl || item.mainImage || '',
+    price: priceStr,
+    moq:   item.moq ?? item.quantity_begin ?? item.minOrderQuantity ?? '--',
+    shop,
+    score: String(score),
+    url:   item.product_url || item.detailUrl || item.itemUrl || fallbackUrl || ''
   };
 }
 
@@ -1292,15 +1295,52 @@ async function doSearch1688() {
   area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-500);font-size:13px;">${S1688_SPIN}正在翻译关键词... Translating...</div>`;
   statusLine.textContent = '';
 
-  // Keyword search and translation are not available on the current TMAPI plan.
-  // Skip straight to the manual URL fallback with a helpful prompt.
-  area.innerHTML = `<div style="text-align:center;padding:24px 16px;color:var(--gray-500);font-size:13px;line-height:1.6;">
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5" style="display:block;margin:0 auto 10px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-    在1688搜索"<b>${p.name}</b>"，找到产品后复制链接粘贴到下方<br>
-    <span style="font-size:11px;color:var(--gray-400);">Search 1688 for this product, then paste the product URL below</span>
-  </div>`;
-  statusLine.textContent = '请手动搜索并粘贴链接';
-  document.getElementById('s1688-manual-section').setAttribute('open', '');
+  // Step 1: translate product name to Chinese
+  let keyword = p.name;
+  try {
+    const trRes = await fetch(`/api/tmapi?endpoint=translate&text=${encodeURIComponent(p.name)}`);
+    if (trRes.ok) {
+      const trJson = await trRes.json();
+      const translated = trJson?.data?.text || trJson?.data?.translatedText || trJson?.data || trJson?.text || '';
+      if (translated && typeof translated === 'string' && translated.trim()) keyword = translated.trim();
+    }
+  } catch { /* fall through with original name */ }
+
+  area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-500);font-size:13px;">${S1688_SPIN}正在搜索"${keyword}"...</div>`;
+
+  // Step 2: keyword search
+  try {
+    const res = await fetch(`/api/tmapi?endpoint=search&keyword=${encodeURIComponent(keyword)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const raw = json?.data?.items || json?.items || [];
+    const items = Array.isArray(raw) ? raw.slice(0, 5) : [];
+
+    if (items.length === 0) {
+      area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-400);font-size:13px;">
+        <div style="margin-bottom:8px;">未找到结果 No results for "${keyword}"</div>
+        <div style="font-size:11px;">请展开下方手动输入链接 Expand below to paste a URL manually</div>
+      </div>`;
+      statusLine.textContent = '未找到结果';
+      retryBtn.style.display = 'inline-flex';
+      document.getElementById('s1688-manual-section').setAttribute('open', '');
+      return;
+    }
+
+    s1688ResultItems = items.map(item => normalize1688Item(item, ''));
+    statusLine.textContent = `找到 ${s1688ResultItems.length} 个结果 · 点击选择`;
+    renderSearch1688Cards();
+
+  } catch (err) {
+    console.error('[1688 search] error:', err);
+    area.innerHTML = `<div style="text-align:center;padding:28px;">
+      <div style="color:var(--danger);font-weight:600;margin-bottom:4px;">搜索失败 Search failed</div>
+      <div style="font-size:12px;color:var(--gray-500);">${err.message}</div>
+    </div>`;
+    statusLine.textContent = '搜索失败';
+    retryBtn.style.display = 'inline-flex';
+    document.getElementById('s1688-manual-section').setAttribute('open', '');
+  }
 }
 
 function renderSearch1688Cards() {
