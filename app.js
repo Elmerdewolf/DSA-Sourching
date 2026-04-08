@@ -1292,11 +1292,28 @@ async function doSearch1688() {
   document.getElementById('s1688-msg-section').style.display = 'none';
   document.getElementById('btn-1688-proceed').disabled = true;
 
-  // Only use image search if we have a real HTTP(S) URL — not a base64/blob/local path
   const rawImg = p.realImage || p.image || '';
-  const imgUrl = (rawImg.startsWith('http://') || rawImg.startsWith('https://')) ? rawImg : '';
+  let imgUrl = (rawImg.startsWith('http://') || rawImg.startsWith('https://')) ? rawImg : '';
   const keyword = p.name;
-  console.log('[1688 search] p.realImage=', p.realImage, 'p.image=', (p.image||'').slice(0,80), '→ imgUrl=', imgUrl || '(none, using keyword)');
+  const refLink = getProductRefLink(p);
+  console.log('[1688 search] rawImg=', rawImg.slice(0,80), 'imgUrl=', imgUrl||'(none)', 'refLink=', refLink||'(none)');
+
+  // If image is base64 and we have a reference link, scrape og:image from the ref page
+  if (!imgUrl && refLink) {
+    area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-500);font-size:13px;">${S1688_SPIN}正在获取产品图片... Fetching product image...</div>`;
+    try {
+      const scrapeRes = await fetch(`/api/tmapi?endpoint=scrapeimage&scrape_url=${encodeURIComponent(refLink)}`);
+      if (scrapeRes.ok) {
+        const scrapeJson = await scrapeRes.json();
+        if (scrapeJson.imageUrl) {
+          imgUrl = scrapeJson.imageUrl;
+          console.log('[1688 search] scraped imageUrl=', imgUrl);
+        }
+      }
+    } catch (err) {
+      console.warn('[1688 search] scrape failed:', err.message);
+    }
+  }
 
   if (imgUrl) {
     // Image search — visually similar results from 1688
