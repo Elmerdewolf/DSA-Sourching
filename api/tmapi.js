@@ -7,21 +7,30 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-// Allowed image host domains for the image proxy (security: no open redirect)
+// Only proxy images from known alicdn/1688 domains
 const ALLOWED_IMAGE_HOSTS = ['cbu01.alicdn.com', 'alicdn.com', 'img.alicdn.com', '1688.com', 'aliyuncs.com'];
 
 async function tmapiFetch(url) {
   const logUrl = url.replace(TMAPI_TOKEN, '[TOKEN]');
-  console.log(`[tmapi] → ${logUrl}`);
-  const upstream = await fetch(url, {
-    headers: { 'Authorization': `Bearer ${TMAPI_TOKEN}` },
-  });
+  console.log(`[tmapi] FETCH → ${logUrl}`);
+  let upstream;
+  try {
+    upstream = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${TMAPI_TOKEN}` },
+    });
+  } catch (err) {
+    console.error(`[tmapi] fetch() threw for ${logUrl}:`, err.message, err.stack);
+    throw err;
+  }
   const rawText = await upstream.text();
-  console.log(`[tmapi] status=${upstream.status} body=${rawText.slice(0, 300)}`);
+  console.log(`[tmapi] status=${upstream.status} body=${rawText.slice(0, 500)}`);
   return { status: upstream.status, rawText };
 }
 
-export default async function handler(req, res) {
+// CommonJS export — required when there is no "type":"module" in package.json
+module.exports = async function handler(req, res) {
+  console.log(`[tmapi] invoked method=${req.method} url=${req.url}`);
+
   if (req.method === 'OPTIONS') {
     res.writeHead(204, CORS_HEADERS);
     res.end();
@@ -34,7 +43,9 @@ export default async function handler(req, res) {
   const item_id  = searchParams.get('item_id');
   const text     = searchParams.get('text');
   const img_url  = searchParams.get('img_url');
-  const url      = searchParams.get('url');   // for image proxy
+  const url      = searchParams.get('url');
+
+  console.log(`[tmapi] endpoint=${endpoint} keyword=${keyword} item_id=${item_id}`);
 
   // ── Image proxy ──────────────────────────────────────────────────────────
   if (endpoint === 'image') {
@@ -52,15 +63,13 @@ export default async function handler(req, res) {
     const allowed = ALLOWED_IMAGE_HOSTS.some(h => parsedUrl.hostname === h || parsedUrl.hostname.endsWith('.' + h));
     if (!allowed) {
       res.writeHead(403, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'image host not allowed' }));
+      res.end(JSON.stringify({ error: 'image host not allowed', host: parsedUrl.hostname }));
       return;
     }
     try {
+      console.log(`[tmapi] image proxy → ${url}`);
       const imgRes = await fetch(url, {
-        headers: {
-          'Referer': 'https://www.1688.com/',
-          'User-Agent': 'Mozilla/5.0',
-        },
+        headers: { 'Referer': 'https://www.1688.com/', 'User-Agent': 'Mozilla/5.0' },
       });
       const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
       const buffer = await imgRes.arrayBuffer();
@@ -71,6 +80,7 @@ export default async function handler(req, res) {
       });
       res.end(Buffer.from(buffer));
     } catch (err) {
+      console.error('[tmapi] image fetch failed:', err.message);
       res.writeHead(502, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'image fetch failed', detail: err.message }));
     }
@@ -86,8 +96,7 @@ export default async function handler(req, res) {
       res.end(JSON.stringify({ error: 'keyword is required' }));
       return;
     }
-
-    // Step 1: translate keyword to Chinese
+    // Translate keyword to Chinese before searching
     let searchKeyword = keyword;
     try {
       const trUrl = `${TMAPI_BASE}/tools/translate?text=${encodeURIComponent(keyword)}&target_lang=zh&apiToken=${TMAPI_TOKEN}`;
@@ -97,18 +106,17 @@ export default async function handler(req, res) {
         const translated =
           trJson?.data?.translated_text ||
           trJson?.data?.text ||
-          trJson?.data ||
+          (typeof trJson?.data === 'string' ? trJson.data : null) ||
           trJson?.translated_text ||
           trJson?.text || '';
         if (translated && typeof translated === 'string' && translated.trim()) {
           searchKeyword = translated.trim();
-          console.log(`[tmapi] search keyword translated: "${keyword}" → "${searchKeyword}"`);
+          console.log(`[tmapi] translated "${keyword}" → "${searchKeyword}"`);
         }
       }
     } catch (err) {
       console.warn('[tmapi] translation failed, using original keyword:', err.message);
     }
-
     upstreamUrl = `${TMAPI_BASE}/1688/search/items?keyword=${encodeURIComponent(searchKeyword)}&apiToken=${TMAPI_TOKEN}`;
 
   } else if (endpoint === 'imgsearch') {
@@ -147,16 +155,17 @@ export default async function handler(req, res) {
     try {
       data = JSON.parse(rawText);
     } catch {
+      console.error('[tmapi] non-JSON response:', rawText.slice(0, 200));
       res.writeHead(502, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Non-JSON response from TMAPI', body: rawText }));
+      res.end(JSON.stringify({ error: 'Non-JSON response from TMAPI', body: rawText.slice(0, 500) }));
       return;
     }
-    if (status >= 400) console.error(`[tmapi] upstream error ${status}:`, JSON.stringify(data));
+    if (status >= 400) console.error(`[tmapi] upstream ${status}:`, JSON.stringify(data));
     res.writeHead(status, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
     res.end(JSON.stringify(data));
   } catch (err) {
-    console.error(`[tmapi] fetch threw:`, err.message);
+    console.error('[tmapi] unhandled error:', err.message, err.stack);
     res.writeHead(502, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Upstream request failed', detail: err.message }));
   }
-}
+};
