@@ -1294,7 +1294,55 @@ async function doSearch1688() {
 
   const rawImg = p.realImage || p.image || '';
   let imgUrl = (rawImg.startsWith('http://') || rawImg.startsWith('https://')) ? rawImg : '';
-  const keyword = p.name;
+
+  // Map English clothing terms to Chinese for better 1688 search results
+  const KEYWORD_MAP = [
+    [/\bpolka[\s-]?dot|dots?\b/i, '波点'],
+    [/\bdress(es)?\b/i,           '连衣裙'],
+    [/\bskirt\b/i,                '半身裙'],
+    [/\bshirt|blouse\b/i,         '衬衫'],
+    [/\bt-?shirt\b/i,             'T恤'],
+    [/\bpants|trousers\b/i,       '裤子'],
+    [/\bjeans\b/i,                '牛仔裤'],
+    [/\bjacket|coat\b/i,          '外套'],
+    [/\bsweater|jumper\b/i,       '毛衣'],
+    [/\bhoodie\b/i,               '卫衣'],
+    [/\bshorts\b/i,               '短裤'],
+    [/\bleggings\b/i,             '打底裤'],
+    [/\btop\b/i,                  '上衣'],
+    [/\bsocks\b/i,                '袜子'],
+    [/\bunderwear|bra\b/i,        '内衣'],
+    [/\bbikini|swimwear|swimsuit\b/i, '泳装'],
+    [/\bsandals?\b/i,             '凉鞋'],
+    [/\bsneakers?|trainers?\b/i,  '运动鞋'],
+    [/\bheels?|pumps?\b/i,        '高跟鞋'],
+    [/\bbag|handbag|purse\b/i,    '包'],
+    [/\bscarf\b/i,                '围巾'],
+    [/\bhat|cap\b/i,              '帽子'],
+    [/\bbelt\b/i,                 '腰带'],
+    [/\bjewel|necklace\b/i,       '项链'],
+    [/\bearing\b/i,               '耳环'],
+    [/\bkids?|children|baby\b/i,  '儿童'],
+    [/\bmen'?s?\b/i,              '男装'],
+    [/\bwomen'?s?|ladies?\b/i,    '女装'],
+    [/\bfloral|flower\b/i,        '花朵'],
+    [/\bstriped?|stripes?\b/i,    '条纹'],
+    [/\blace\b/i,                 '蕾丝'],
+    [/\bembroid/i,                '刺绣'],
+    [/\bprinted?\b/i,             '印花'],
+    [/\bsolid|plain\b/i,          '纯色'],
+  ];
+
+  function buildSearchKeyword(name) {
+    const terms = [];
+    for (const [pattern, chinese] of KEYWORD_MAP) {
+      if (pattern.test(name) && !terms.includes(chinese)) terms.push(chinese);
+    }
+    return terms.length > 0 ? terms.join(' ') : name;
+  }
+
+  const keyword = buildSearchKeyword(p.name);
+  console.log('[1688 search] p.name=', p.name, '→ keyword=', keyword);
   const refLink = getProductRefLink(p);
   console.log('[1688 search] rawImg=', rawImg.slice(0,80), 'imgUrl=', imgUrl||'(none)', 'refLink=', refLink||'(none)');
 
