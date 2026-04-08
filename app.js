@@ -1292,8 +1292,11 @@ async function doSearch1688() {
   document.getElementById('s1688-msg-section').style.display = 'none';
   document.getElementById('btn-1688-proceed').disabled = true;
 
-  const imgUrl = p.realImage || p.image || '';
+  // Only use image search if we have a real HTTP(S) URL — not a base64/blob/local path
+  const rawImg = p.realImage || p.image || '';
+  const imgUrl = (rawImg.startsWith('http://') || rawImg.startsWith('https://')) ? rawImg : '';
   const keyword = p.name;
+  console.log('[1688 search] p.realImage=', p.realImage, 'p.image=', (p.image||'').slice(0,80), '→ imgUrl=', imgUrl || '(none, using keyword)');
 
   if (imgUrl) {
     // Image search — visually similar results from 1688
