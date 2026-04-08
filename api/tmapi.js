@@ -51,13 +51,39 @@ export default async function handler(req, res) {
     return;
   }
 
+  // Log URL with token redacted for security
+  const logUrl = upstreamUrl.replace(TMAPI_TOKEN, '[TOKEN]');
+  console.log(`[tmapi] ${endpoint} → ${logUrl}`);
+
   try {
-    const upstream = await fetch(upstreamUrl);
-    const data = await upstream.json();
+    const upstream = await fetch(upstreamUrl, {
+      headers: {
+        'Authorization': `Bearer ${TMAPI_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const rawText = await upstream.text();
+    console.log(`[tmapi] ${endpoint} status=${upstream.status} body=${rawText}`);
+
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      // TMAPI returned non-JSON — surface it as a readable error
+      res.writeHead(502, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Non-JSON response from TMAPI', body: rawText }));
+      return;
+    }
+
+    if (!upstream.ok) {
+      console.error(`[tmapi] ${endpoint} upstream error:`, JSON.stringify(data));
+    }
 
     res.writeHead(upstream.status, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
     res.end(JSON.stringify(data));
   } catch (err) {
+    console.error(`[tmapi] ${endpoint} fetch threw:`, err.message);
     res.writeHead(502, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Upstream request failed', detail: err.message }));
   }
