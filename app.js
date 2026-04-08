@@ -6,7 +6,7 @@
 
 // === 1688 API Config ===
 const TMAPI_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6IkRTQSIsIkNvbWlkIjpudWxsLCJSb2xlaWQiOm51bGwsImlzcyI6InRtYXBpIiwic3ViIjoiRFNBIiwiYXVkIjpbIiJdLCJpYXQiOjE3NDI5ODczNzB9.I2Ty0TtKYE_zHiuT071RjDgsM7x4UC7rePJD0c4qR9M';
-const TMAPI_BASE = 'https://api.tmapi.io';
+const TMAPI_BASE = 'https://api.tmapi.top';
 
 const STORAGE = { products: 'qms_products', logistics: 'qms_logistics', freight: 'qms_freight', quotes: 'qms_quotes', users: 'qms_users' };
 const DIR_DB = 'qms_dir_db';
@@ -1350,7 +1350,7 @@ function renderSearch1688Cards() {
       style="display:flex;gap:12px;padding:11px 13px;border:2px solid var(--gray-200);border-radius:8px;
              cursor:pointer;margin-bottom:8px;transition:all 0.15s;align-items:flex-start;">
       ${s.img
-        ? `<img src="${s.img}" style="width:80px;height:80px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none'">`
+        ? `<img src="/api/tmapi?endpoint=image&url=${encodeURIComponent(s.img)}" style="width:80px;height:80px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none'">`
         : `<div style="width:80px;height:80px;background:var(--gray-100);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`}
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:600;margin-bottom:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${s.title}</div>
