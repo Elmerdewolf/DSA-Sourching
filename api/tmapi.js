@@ -239,12 +239,41 @@ module.exports = async function handler(req, res) {
     try {
       console.log(`[tmapi] scrapeimage → ${scrapeUrl}`);
       const html = await httpsGetHtml(scrapeUrl);
-      // Try og:image first, then twitter:image, then first large img src
-      const ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
-        || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-      const twMatch = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i)
-        || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
-      const imageUrl = ogMatch?.[1] || twMatch?.[1] || null;
+
+      function metaContent(property, isName = false) {
+        const attr = isName ? 'name' : 'property';
+        const m = html.match(new RegExp(`<meta[^>]+${attr}=["']${property}["'][^>]+content=["']([^"']+)["']`, 'i'))
+          || html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+${attr}=["']${property}["']`, 'i'));
+        return m?.[1] || null;
+      }
+
+      // Priority: og:image:secure_url → og:image → twitter:image:src → twitter:image → large <img>
+      let imageUrl = metaContent('og:image:secure_url')
+        || metaContent('og:image')
+        || metaContent('twitter:image:src', true)
+        || metaContent('twitter:image', true);
+
+      // Fallback: first <img> with width attribute >= 400
+      if (!imageUrl) {
+        const imgTags = html.matchAll(/<img[^>]+>/gi);
+        for (const [tag] of imgTags) {
+          const wMatch = tag.match(/width=["']?(\d+)/i);
+          const srcMatch = tag.match(/src=["']([^"']+)["']/i);
+          if (wMatch && parseInt(wMatch[1]) >= 400 && srcMatch) {
+            const src = srcMatch[1];
+            if (src.startsWith('http')) { imageUrl = src; break; }
+          }
+        }
+      }
+
+      // Strip query strings that resize images (e.g. AliExpress appends _350x350.jpg)
+      if (imageUrl) {
+        imageUrl = imageUrl
+          .replace(/_\d+x\d+(\.\w+)(\?.*)?$/, '$1')   // AliExpress thumbnail suffix
+          .replace(/\?.*$/, '')                          // remove query string
+          .split('_.webp')[0] + (imageUrl.includes('_.webp') ? '.jpg' : '');
+      }
+
       console.log(`[tmapi] scrapeimage result: ${imageUrl}`);
       res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ imageUrl: imageUrl || null }));
