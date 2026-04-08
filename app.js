@@ -1350,16 +1350,21 @@ function renderSearch1688Cards() {
       style="display:flex;gap:12px;padding:11px 13px;border:2px solid var(--gray-200);border-radius:8px;
              cursor:pointer;margin-bottom:8px;transition:all 0.15s;align-items:flex-start;">
       ${s.img
-        ? `<img src="${s.img}" style="width:68px;height:68px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none'">`
-        : `<div style="width:68px;height:68px;background:var(--gray-100);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`}
+        ? `<img src="${s.img}" style="width:80px;height:80px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none'">`
+        : `<div style="width:80px;height:80px;background:var(--gray-100);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`}
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:600;margin-bottom:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${s.title}</div>
         <div style="font-size:12px;color:var(--gray-600);margin-bottom:5px;">🏪 ${s.shop}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;">
+        <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;margin-bottom:6px;">
           <span style="color:var(--danger);font-weight:600;">${s.price}</span>
           <span style="color:var(--gray-500);">起订量 MOQ: <b>${s.moq}</b></span>
           <span style="color:var(--gray-500);">评分 <b>${s.score}</b></span>
         </div>
+        ${s.url ? `<a href="${s.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()"
+          style="font-size:11px;color:var(--primary);text-decoration:none;display:inline-flex;align-items:center;gap:3px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          在1688查看 View on 1688
+        </a>` : ''}
       </div>
       <div id="s1688-check-${i}" style="display:none;flex-shrink:0;width:22px;height:22px;background:var(--primary);
            border-radius:50%;color:white;font-size:13px;align-items:center;justify-content:center;margin-top:2px;">✓</div>
