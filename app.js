@@ -7,7 +7,7 @@
 // === 1688 API Config ===
 const TMAPI_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6IkRTQSIsIkNvbWlkIjpudWxsLCJSb2xlaWQiOm51bGwsImlzcyI6InRtYXBpIiwic3ViIjoiRFNBIiwiYXVkIjpbIiJdLCJpYXQiOjE3NDI5ODczNzB9.I2Ty0TtKYE_zHiuT071RjDgsM7x4UC7rePJD0c4qR9M';
 const TMAPI_BASE = 'https://api.tmapi.top';
-const CORS_PROXY = 'https://corsproxy.io/?url=';
+const CORS_PROXY = 'https://api.allorigins.win/get?url=';
 
 const STORAGE = { products: 'qms_products', logistics: 'qms_logistics', freight: 'qms_freight', quotes: 'qms_quotes', users: 'qms_users' };
 const DIR_DB = 'qms_dir_db';
@@ -1266,24 +1266,40 @@ async function doSearch1688() {
     // Step 1: translate keyword to Chinese
     let searchKeyword = keyword;
     try {
-      const trRes = await fetch(CORS_PROXY + encodeURIComponent(`${TMAPI_BASE}/translate/text?text=${encodeURIComponent(keyword)}&target_lang=zh&apiToken=${TMAPI_TOKEN}`));
+      const trTargetUrl = `${TMAPI_BASE}/translate/text?text=${encodeURIComponent(keyword)}&target_lang=zh&apiToken=${TMAPI_TOKEN}`;
+      const trProxiedUrl = CORS_PROXY + encodeURIComponent(trTargetUrl);
+      console.log('[1688 translate] fetching:', trProxiedUrl);
+      const trRes = await fetch(trProxiedUrl);
+      console.log('[1688 translate] status:', trRes.status, trRes.statusText);
       if (trRes.ok) {
-        const trJson = await trRes.json();
+        const trRaw = await trRes.json();
+        console.log('[1688 translate] raw response:', JSON.stringify(trRaw));
+        // allorigins wraps response in { contents: "..." }
+        const trJson = typeof trRaw?.contents === 'string' ? JSON.parse(trRaw.contents) : trRaw;
         const translated = trJson?.data?.text || trJson?.data?.translatedText || trJson?.data || trJson?.text || '';
         if (translated && typeof translated === 'string' && translated.trim()) {
           searchKeyword = translated.trim();
           document.getElementById('s1688-keyword').value = searchKeyword;
         }
       }
-    } catch { /* translation failed, proceed with original keyword */ }
+    } catch (trErr) {
+      console.warn('[1688 translate] failed, using original keyword:', trErr);
+    }
     setStatus(`<div style="text-align:center;padding:28px 16px;color:var(--gray-500);">
       <svg class="spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5" style="margin-right:8px;vertical-align:middle;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
       正在搜索1688供应商... Searching 1688 for "${searchKeyword}"...
     </div>`);
     // Step 2: search 1688
-    const res = await fetch(CORS_PROXY + encodeURIComponent(`${TMAPI_BASE}/ali/search/items?keyword=${encodeURIComponent(searchKeyword)}&apiToken=${TMAPI_TOKEN}`));
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
+    const searchTargetUrl = `${TMAPI_BASE}/ali/search/items?keyword=${encodeURIComponent(searchKeyword)}&apiToken=${TMAPI_TOKEN}`;
+    const searchProxiedUrl = CORS_PROXY + encodeURIComponent(searchTargetUrl);
+    console.log('[1688 search] fetching:', searchProxiedUrl);
+    const res = await fetch(searchProxiedUrl);
+    console.log('[1688 search] status:', res.status, res.statusText);
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+    const resRaw = await res.json();
+    console.log('[1688 search] raw response:', JSON.stringify(resRaw));
+    // allorigins wraps response in { contents: "..." }
+    const json = typeof resRaw?.contents === 'string' ? JSON.parse(resRaw.contents) : resRaw;
     const raw = json?.data?.items || json?.data?.data || json?.data || json?.items || [];
     const items = Array.isArray(raw) ? raw.slice(0, 5) : [];
     if (items.length === 0) {
