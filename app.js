@@ -1296,9 +1296,17 @@ async function doSearch1688() {
   area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-500);font-size:13px;">${S1688_SPIN}正在搜索"${keyword}"... Searching...</div>`;
   statusLine.textContent = '';
 
-  // Keyword search
+  // Keyword search — try Vercel proxy first, fall back to direct TMAPI call
+  async function fetchSearch(kw) {
+    let res = await fetch(`/api/tmapi?endpoint=search&keyword=${encodeURIComponent(kw)}`);
+    if (res.status === 502 || res.status === 503 || res.status === 504) {
+      console.warn('[1688 search] proxy failed, trying direct TMAPI call');
+      res = await fetch(`${TMAPI_BASE}/1688/search/items?keyword=${encodeURIComponent(kw)}&apiToken=${TMAPI_TOKEN}`);
+    }
+    return res;
+  }
   try {
-    const res = await fetch(`/api/tmapi?endpoint=search&keyword=${encodeURIComponent(keyword)}`);
+    const res = await fetchSearch(keyword);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
     const raw = json?.data?.items || json?.items || [];
