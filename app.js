@@ -1292,23 +1292,11 @@ async function doSearch1688() {
   document.getElementById('s1688-msg-section').style.display = 'none';
   document.getElementById('btn-1688-proceed').disabled = true;
 
-  area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-500);font-size:13px;">${S1688_SPIN}正在翻译关键词... Translating...</div>`;
+  const keyword = p.name;
+  area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-500);font-size:13px;">${S1688_SPIN}正在搜索"${keyword}"... Searching...</div>`;
   statusLine.textContent = '';
 
-  // Step 1: translate product name to Chinese
-  let keyword = p.name;
-  try {
-    const trRes = await fetch(`/api/tmapi?endpoint=translate&text=${encodeURIComponent(p.name)}`);
-    if (trRes.ok) {
-      const trJson = await trRes.json();
-      const translated = trJson?.data?.text || trJson?.data?.translatedText || trJson?.data || trJson?.text || '';
-      if (translated && typeof translated === 'string' && translated.trim()) keyword = translated.trim();
-    }
-  } catch { /* fall through with original name */ }
-
-  area.innerHTML = `<div style="text-align:center;padding:28px;color:var(--gray-500);font-size:13px;">${S1688_SPIN}正在搜索"${keyword}"...</div>`;
-
-  // Step 2: keyword search
+  // Keyword search
   try {
     const res = await fetch(`/api/tmapi?endpoint=search&keyword=${encodeURIComponent(keyword)}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

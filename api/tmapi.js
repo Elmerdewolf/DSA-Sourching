@@ -96,28 +96,7 @@ module.exports = async function handler(req, res) {
       res.end(JSON.stringify({ error: 'keyword is required' }));
       return;
     }
-    // Translate keyword to Chinese before searching
-    let searchKeyword = keyword;
-    try {
-      const trUrl = `${TMAPI_BASE}/tools/translate?text=${encodeURIComponent(keyword)}&target_lang=zh&apiToken=${TMAPI_TOKEN}`;
-      const { status, rawText } = await tmapiFetch(trUrl);
-      if (status === 200) {
-        const trJson = JSON.parse(rawText);
-        const translated =
-          trJson?.data?.translated_text ||
-          trJson?.data?.text ||
-          (typeof trJson?.data === 'string' ? trJson.data : null) ||
-          trJson?.translated_text ||
-          trJson?.text || '';
-        if (translated && typeof translated === 'string' && translated.trim()) {
-          searchKeyword = translated.trim();
-          console.log(`[tmapi] translated "${keyword}" → "${searchKeyword}"`);
-        }
-      }
-    } catch (err) {
-      console.warn('[tmapi] translation failed, using original keyword:', err.message);
-    }
-    upstreamUrl = `${TMAPI_BASE}/1688/search/items?keyword=${encodeURIComponent(searchKeyword)}&apiToken=${TMAPI_TOKEN}`;
+    upstreamUrl = `${TMAPI_BASE}/1688/search/items?keyword=${encodeURIComponent(keyword)}&apiToken=${TMAPI_TOKEN}`;
 
   } else if (endpoint === 'imgsearch') {
     if (!img_url) {
