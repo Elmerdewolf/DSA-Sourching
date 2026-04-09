@@ -1,7 +1,7 @@
 const https = require('https');
 
 const TMAPI_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6IkRTQSIsIkNvbWlkIjpudWxsLCJSb2xlaWQiOm51bGwsImlzcyI6InRtYXBpIiwic3ViIjoiRFNBIiwiYXVkIjpbIiJdLCJpYXQiOjE3NDI5ODczNzB9.I2Ty0TtKYE_zHiuT071RjDgsM7x4UC7rePJD0c4qR9M';
-const IMGBB_API_KEY = 'PASTE_YOUR_IMGBB_KEY_HERE';
+const IMGBB_API_KEY = 'cc413d0e6f5798f22639536063dbbb46';
 const TMAPI_BASE = 'https://api.tmapi.top';
 
 const CORS_HEADERS = {
